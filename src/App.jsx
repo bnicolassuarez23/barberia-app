@@ -763,20 +763,8 @@ function ReportesView({ registros, gastos, pct }) {
   );
 }
 
-export default function App() {
+// 1. Estados
   const [session, setSession] = useState(null);
-  useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setSession(session);
-  });
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    setSession(session);
-  });
-
-  return () => subscription.unsubscribe();
-}, []);
-if (!session) return <Auth />;
   const [loading, setLoading] = useState(true);
   const [syncError, setSyncError] = useState(false);
   const [config, setConfig] = useState({ barberos: ['Nico', 'Martín', 'Gonza'], comisionPct: 50 });
@@ -787,28 +775,55 @@ if (!session) return <Auth />;
   const [monthAnchor, setMonthAnchor] = useState(new Date());
   const [weekAnchor, setWeekAnchor] = useState(mondayOf(new Date()));
 
+  // 2. Escuchar la sesión de Supabase
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      let cfg = { barberos: ['Nico', 'Martín', 'Gonza'], comisionPct: 50 };
-      let regs = [];
-      let gts = [];
-      try {
-        const r = await window.storage.get('config', false);
-        if (r && r.value) cfg = JSON.parse(r.value);
-      } catch (e) { /* primera vez, sin config guardada */ }
-      try {
-        const r = await window.storage.get('registros', false);
-        if (r && r.value) regs = JSON.parse(r.value);
-      } catch (e) { /* primera vez, sin registros guardados */ }
-      try {
-        const r = await window.storage.get('gastos', false);
-        if (r && r.value) gts = JSON.parse(r.value);
-      } catch (e) { /* primera vez, sin gastos guardados */ }
-      if (mounted) { setConfig(cfg); setRegistros(regs); setGastos(gts); setLoading(false); }
-    })();
-    return () => { mounted = false; };
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
   }, []);
+
+  // 3. Cargar datos de Supabase si hay usuario
+  useEffect(() => {
+    if (!session) return;
+
+    async function cargarDatos() {
+      try {
+        const { data: regData } = await supabase.from('registros').select('*');
+        if (regData) setRegistros(regData);
+
+        const { data: gastData } = await supabase.from('gastos').select('*');
+        if (gastData) setGastos(gastData);
+      } catch (err) {
+        console.error('Error cargando datos:', err);
+      }
+    }
+
+    cargarDatos();
+  }, [session]);
+
+  // 4. Pantalla de carga
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-stone-950 flex items-center justify-center text-stone-400">
+        <Loader2 className="animate-spin mr-2" size={20} /> Cargando...
+      </div>
+    );
+  }
+
+  // 5. Si no está logueado, mostrar Login
+  if (!session) {
+    return <Auth />;
+  }
 
   const persistConfig = async (cfg) => {
     setConfig(cfg);
