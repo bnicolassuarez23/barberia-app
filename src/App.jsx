@@ -4,6 +4,7 @@ import {
   CalendarDays, ListChecks, Users, Loader2, Wallet, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import Auth from './Auth';
 const TIPOS = [
   { key: 'corte', label: 'Corte', Icon: Scissors },
   { key: 'ropa', label: 'Ropa/Producto', Icon: Shirt },
@@ -763,6 +764,19 @@ function ReportesView({ registros, gastos, pct }) {
 }
 
 export default function App() {
+  const [session, setSession] = useState(null);
+  useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setSession(session);
+  });
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+if (!session) return <Auth />;
   const [loading, setLoading] = useState(true);
   const [syncError, setSyncError] = useState(false);
   const [config, setConfig] = useState({ barberos: ['Nico', 'Martín', 'Gonza'], comisionPct: 50 });
@@ -844,6 +858,14 @@ export default function App() {
           <h1 className="text-2xl font-semibold tracking-tight" style={{ fontFamily: FONT_DISPLAY }}>Libro de Caja</h1>
           <span className="text-xs text-stone-500 uppercase tracking-widest" style={{ fontFamily: FONT_MONO }}>Barbería</span>
         </div>
+        <div className="flex justify-end p-4">
+  <button 
+    onClick={() => supabase.auth.signOut()}
+    className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+  >
+    Cerrar Sesión
+  </button>
+</div>
         {syncError && <p className="mt-2 text-xs text-red-400">No se pudo guardar el último cambio. Revisá tu conexión.</p>}
       </header>
 
