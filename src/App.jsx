@@ -867,6 +867,9 @@ function ReportesView({ registros, gastos, pct }) {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 pb-24" style={{ fontFamily: FONT_BODY }}>
+      
+  return (
+    <div className="min-h-screen bg-stone-950 text-stone-100 pb-24" style={{ fontFamily: FONT_BODY }}>
       <style>{"@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');"}</style>
       <BarraBarbero />
 
@@ -886,6 +889,7 @@ function ReportesView({ registros, gastos, pct }) {
         </div>
         {syncError && <p className="mt-2 text-xs text-red-400">No se pudo guardar el último cambio. Revisá tu conexión.</p>}
       </header>
+
       <main className="px-4 py-4">
         {tab === 'hoy' && (
           <HoyView dateSel={dateSel} setDateSel={setDateSel} barberos={config.barberos} pct={config.comisionPct} registros={registros} addRegistro={addRegistro} deleteRegistro={deleteRegistro} />
