@@ -762,8 +762,8 @@ function ReportesView({ registros, gastos, pct }) {
     </div>
   );
 }
-
-// 1. Estados
+export default function App() {
+  // 1. Estados
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncError, setSyncError] = useState(false);
@@ -792,7 +792,7 @@ function ReportesView({ registros, gastos, pct }) {
     };
   }, []);
 
-  // 3. Cargar datos de Supabase si hay usuario
+  // 3. Cargar datos de Supabase
   useEffect(() => {
     if (!session) return;
 
@@ -811,56 +811,18 @@ function ReportesView({ registros, gastos, pct }) {
     cargarDatos();
   }, [session]);
 
-  // 4. Pantalla de carga
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-stone-950 flex items-center justify-center text-stone-400">
-        <Loader2 className="animate-spin mr-2" size={20} /> Cargando...
-      </div>
-    );
-  }
-
-  // 5. Si no está logueado, mostrar Login
-  if (!session) {
-    return <Auth />;
-  }
-
-  const persistConfig = async (cfg) => {
-    setConfig(cfg);
-    try {
-      const res = await window.storage.set('config', JSON.stringify(cfg), false);
-      setSyncError(!res);
-    } catch (e) { setSyncError(true); }
-  };
-
-  const persistRegistros = async (regs) => {
-    setRegistros(regs);
-    try {
-      const res = await window.storage.set('registros', JSON.stringify(regs), false);
-      setSyncError(!res);
-    } catch (e) { setSyncError(true); }
-  };
-
-  const persistGastos = async (gts) => {
-    setGastos(gts);
-    try {
-      const res = await window.storage.set('gastos', JSON.stringify(gts), false);
-      setSyncError(!res);
-    } catch (e) { setSyncError(true); }
-  };
-
-  const addRegistro = (entry) => persistRegistros([...registros, { id: uid(), ...entry }]);
-  const deleteRegistro = (id) => persistRegistros(registros.filter((r) => r.id !== id));
-  const addGasto = (entry) => persistGastos([...gastos, { id: uid(), ...entry }]);
-  const deleteGasto = (id) => persistGastos(gastos.filter((g) => g.id !== id));
+  const persistConfig = async (cfg) => { setConfig(cfg); };
+  const addRegistro = (entry) => setRegistros([...registros, { id: uid(), ...entry }]);
+  const deleteRegistro = (id) => setRegistros(registros.filter((r) => r.id !== id));
+  const addGasto = (entry) => setGastos([...gastos, { id: uid(), ...entry }]);
+  const deleteGasto = (id) => setGastos(gastos.filter((g) => g.id !== id));
   const irAFecha = (iso) => { setDateSel(iso); setTab('hoy'); };
 
+  // 4. Control de pantalla según estado
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-950 flex items-center justify-center" style={{ fontFamily: FONT_BODY }}>
-        <div className="flex items-center gap-2 text-stone-400">
-          <Loader2 className="animate-spin" size={18} />Cargando...
-        </div>
+      <div className="min-h-screen bg-stone-950 flex items-center justify-center text-stone-400" style={{ fontFamily: FONT_BODY }}>
+        <Loader2 className="animate-spin mr-2" size={20} /> Cargando...
       </div>
     );
   }
@@ -887,7 +849,7 @@ function ReportesView({ registros, gastos, pct }) {
           </button>
         </div>
         {syncError && <p className="mt-2 text-xs text-red-400">No se pudo guardar el último cambio. Revisá tu conexión.</p>}
-      </header>
+      </header>  
 
       <main className="px-4 py-4">
         {tab === 'hoy' && (
@@ -897,16 +859,16 @@ function ReportesView({ registros, gastos, pct }) {
           <CalendarioView monthAnchor={monthAnchor} setMonthAnchor={setMonthAnchor} registros={registros} onSelectDay={irAFecha} dateSel={dateSel} />
         )}
         {tab === 'semana' && (
-          <SemanaView weekAnchor={weekAnchor} setWeekAnchor={setWeekAnchor} barberos={config.barberos} pct={config.comisionPct} registros={registros} onSelectDay={irAFecha} dateSel={dateSel} />
+          <CierresView weekAnchor={weekAnchor} setWeekAnchor={setWeekAnchor} barberos={config.barberos} pct={config.comisionPct} registros={registros} gastos={gastos} />
         )}
-        {tab === 'resumen' && (
-          <ResumenView registros={registros} gastos={gastos} barberos={config.barberos} pct={config.comisionPct} monthAnchor={monthAnchor} setMonthAnchor={setMonthAnchor} />
+        {tab === 'reportes' && (
+          <ReportesView registros={registros} gastos={gastos} pct={config.comisionPct} />
         )}
         {tab === 'gastos' && (
-          <GastosView gastos={gastos} addGasto={addGasto} deleteGasto={deleteGasto} monthAnchor={monthAnchor} setMonthAnchor={setMonthAnchor} />
+          <GastosView gastos={gastos} onAdd={addGasto} onDelete={deleteGasto} />
         )}
-        {tab === 'config' && (
-          <ConfigView config={config} saveConfig={persistConfig} />
+        {tab === 'barberos' && (
+          <BarberosView config={config} onSave={persistConfig} />
         )}
       </main>
     </div>
