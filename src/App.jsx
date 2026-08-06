@@ -863,27 +863,29 @@ function ReportesView({ registros, gastos, pct }) {
     );
   }
 
+  if (!session) return <Auth />;
+
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 pb-24" style={{ fontFamily: FONT_BODY }}>
       <style>{"@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');"}</style>
       <BarraBarbero />
 
-      <header className="px-4 pt-5 pb-3 border-b border-stone-800">
+    <header className="px-4 pt-5 pb-3 border-b border-stone-800">
         <div className="flex items-baseline justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight" style={{ fontFamily: FONT_DISPLAY }}>Libro de Caja</h1>
-          <span className="text-xs text-stone-500 uppercase tracking-widest" style={{ fontFamily: FONT_MONO }}>Barbería</span>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight" style={{ fontFamily: FONT_DISPLAY }}>Libro de Caja</h1>
+            <span className="text-xs text-stone-500 uppercase tracking-widest" style={{ fontFamily: FONT_MONO }}>Barbería</span>
+          </div>
+
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+          >
+            Cerrar Sesión
+          </button>
         </div>
-        <div className="flex justify-end p-4">
-  <button 
-    onClick={() => supabase.auth.signOut()}
-    className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
-  >
-    Cerrar Sesión
-  </button>
-</div>
         {syncError && <p className="mt-2 text-xs text-red-400">No se pudo guardar el último cambio. Revisá tu conexión.</p>}
       </header>
-
       <main className="px-4 py-4">
         {tab === 'hoy' && (
           <HoyView dateSel={dateSel} setDateSel={setDateSel} barberos={config.barberos} pct={config.comisionPct} registros={registros} addRegistro={addRegistro} deleteRegistro={deleteRegistro} />
