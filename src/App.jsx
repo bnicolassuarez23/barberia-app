@@ -858,7 +858,9 @@ function ReportesView({ registros, gastos, pct }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center" style={{ fontFamily: FONT_BODY }}>
-        <div className="flex items-center gap-2 text-stone-400"><Loader2 className="animate-spin" size={18} />Cargando...</div>
+        <div className="flex items-center gap-2 text-stone-400">
+          <Loader2 className="animate-spin" size={18} />Cargando...
+        </div>
       </div>
     );
   }
@@ -867,13 +869,10 @@ function ReportesView({ registros, gastos, pct }) {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 pb-24" style={{ fontFamily: FONT_BODY }}>
-      
-  return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 pb-24" style={{ fontFamily: FONT_BODY }}>
-      <style>{"@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');"}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');`}</style>
       <BarraBarbero />
 
-    <header className="px-4 pt-5 pb-3 border-b border-stone-800">
+      <header className="px-4 pt-5 pb-3 border-b border-stone-800">
         <div className="flex items-baseline justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight" style={{ fontFamily: FONT_DISPLAY }}>Libro de Caja</h1>
@@ -897,29 +896,19 @@ function ReportesView({ registros, gastos, pct }) {
         {tab === 'calendario' && (
           <CalendarioView monthAnchor={monthAnchor} setMonthAnchor={setMonthAnchor} registros={registros} onSelectDay={irAFecha} dateSel={dateSel} />
         )}
-        {tab === 'cierres' && (
-          <CierresView weekAnchor={weekAnchor} setWeekAnchor={setWeekAnchor} registros={registros} barberos={config.barberos} pct={config.comisionPct} gastos={gastos} />
+        {tab === 'semana' && (
+          <SemanaView weekAnchor={weekAnchor} setWeekAnchor={setWeekAnchor} barberos={config.barberos} pct={config.comisionPct} registros={registros} onSelectDay={irAFecha} dateSel={dateSel} />
         )}
-        {tab === 'gastos' && <GastosView gastos={gastos} onAdd={addGasto} onDelete={deleteGasto} />}
-        {tab === 'reportes' && <ReportesView registros={registros} gastos={gastos} pct={config.comisionPct} />}
-        {tab === 'barberos' && <BarberosView config={config} onSave={persistConfig} />}
+        {tab === 'resumen' && (
+          <ResumenView registros={registros} gastos={gastos} barberos={config.barberos} pct={config.comisionPct} monthAnchor={monthAnchor} setMonthAnchor={setMonthAnchor} />
+        )}
+        {tab === 'gastos' && (
+          <GastosView gastos={gastos} addGasto={addGasto} deleteGasto={deleteGasto} monthAnchor={monthAnchor} setMonthAnchor={setMonthAnchor} />
+        )}
+        {tab === 'config' && (
+          <ConfigView config={config} saveConfig={persistConfig} />
+        )}
       </main>
-
-      <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t border-stone-800 flex">
-        {[
-          { key: 'hoy', label: 'Hoy', Icon: ListChecks },
-          { key: 'calendario', label: 'Calendario', Icon: CalendarDays },
-          { key: 'cierres', label: 'Cierres', Icon: Scissors },
-          { key: 'gastos', label: 'Gastos', Icon: Wallet },
-          { key: 'reportes', label: 'Reportes', Icon: TrendingUp },
-          { key: 'barberos', label: 'Barberos', Icon: Users },
-        ].map(({ key, label, Icon }) => (
-          <button key={key} onClick={() => setTab(key)} className={`flex-1 flex flex-col items-center gap-1 py-2.5 ${tab === key ? 'text-amber-400' : 'text-stone-500'}`}>
-            <Icon size={18} />
-            <span className="text-xs" style={{ fontFamily: FONT_MONO }}>{label}</span>
-          </button>
-        ))}
-      </nav>
     </div>
   );
 }
