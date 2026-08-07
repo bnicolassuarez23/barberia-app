@@ -84,11 +84,15 @@ function BarberoDia({ barbero, pct, registros, onAdd, onDelete }) {
   const [metodo, setMetodo] = useState('efectivo');
   const [hora, setHora] = useState(nowHHMM());
 
-  const subtotalCortes = registros.filter((r) => r.tipo === 'corte').reduce((s, r) => s + r.monto, 0);
-  const propinas = registros.filter((r) => r.tipo === 'propina').reduce((s, r) => s + r.monto, 0);
-  const comision = subtotalCortes * (pct / 100);
-  const aCobrar = comision + propinas;
+const subtotalCortes = registros.filter((r) => r.tipo === 'corte').reduce((s, r) => s + r.monto, 0);
+const propinas = registros.filter((r) => r.tipo === 'propina').reduce((s, r) => s + r.monto, 0);
 
+// Si es Nico o Martín, cobra el 100%. Si es otro barbero, cobra la comisión guardada (pct)
+const esJefe = barbero.toLowerCase() === 'nico' || barbero.toLowerCase() === 'martín' || barbero.toLowerCase() === 'martin';
+const pctEfectivo = esJefe ? 100 : pct;
+
+const comision = subtotalCortes * (pctEfectivo / 100);
+const aCobrar = comision + propinas;
  const submit = async () => {
     const m = parseFloat(monto);
     if (!m || m <= 0) return;
@@ -184,11 +188,14 @@ function HoyView({ dateSel, setDateSel, barberos, pct, registros, addRegistro, d
 
   const totales = useMemo(() => {
     let facturado = 0, efectivo = 0, qr = 0, tarjeta = 0, aPagarBarberos = 0, paraBarberia = 0;
-    delDia.forEach((r) => {
+delDia.forEach((r) => {
+      const esJefe = r.barbero?.toLowerCase() === 'nico' || r.barbero?.toLowerCase() === 'martín' || r.barbero?.toLowerCase() === 'martin';
+      const pctEfectivo = esJefe ? 100 : pct;
+
       if (r.tipo === 'corte') {
         facturado += r.monto;
-        aPagarBarberos += r.monto * (pct / 100);
-        paraBarberia += r.monto * (1 - pct / 100);
+        aPagarBarberos += r.monto * (pctEfectivo / 100);
+        paraBarberia += r.monto * (1 - pctEfectivo / 100);
       } else if (r.tipo === 'ropa') {
         facturado += r.monto;
         paraBarberia += r.monto;
@@ -329,7 +336,9 @@ function CierresView({ weekAnchor, setWeekAnchor, registros, barberos, pct, gast
       const totalB = cb.reduce((s, r) => s + r.monto, 0);
       const propB = propinas.filter((r) => r.barbero === b).reduce((s, r) => s + r.monto, 0);
       const ropaB = ropas.filter((r) => r.barbero === b).reduce((s, r) => s + r.monto, 0);
-      const comisionB = totalB * (pct / 100);
+      const esJefe = b.toLowerCase() === 'nico' || b.toLowerCase() === 'martín' || b.toLowerCase() === 'martin';
+const pctEfectivo = esJefe ? 100 : pct;
+const comisionB = totalB * (pctEfectivo / 100);
       return { barbero: b, cantidad: cb.length, totalB, comisionB, propB, ropaB, aCobrar: comisionB + propB };
     });
 
