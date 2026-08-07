@@ -792,7 +792,7 @@ export default function App() {
     };
   }, []);
 
-  // 3. Cargar datos de Supabase
+  // 3. Cargar datos de Supabase si hay sesión activa
   useEffect(() => {
     if (!session) return;
 
@@ -818,7 +818,7 @@ export default function App() {
   const deleteGasto = (id) => setGastos(gastos.filter((g) => g.id !== id));
   const irAFecha = (iso) => { setDateSel(iso); setTab('hoy'); };
 
-  // 4. Control de pantalla según estado
+  // 4. Pantalla de carga
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center text-stone-400" style={{ fontFamily: FONT_BODY }}>
@@ -827,6 +827,7 @@ export default function App() {
     );
   }
 
+  // 5. Si no hay sesión, muestra Login
   if (!session) return <Auth />;
 
   return (
@@ -858,19 +859,36 @@ export default function App() {
         {tab === 'calendario' && (
           <CalendarioView monthAnchor={monthAnchor} setMonthAnchor={setMonthAnchor} registros={registros} onSelectDay={irAFecha} dateSel={dateSel} />
         )}
-        {tab === 'semana' && (
+        {tab === 'cierres' && (
           <CierresView weekAnchor={weekAnchor} setWeekAnchor={setWeekAnchor} barberos={config.barberos} pct={config.comisionPct} registros={registros} gastos={gastos} />
-        )}
-        {tab === 'reportes' && (
-          <ReportesView registros={registros} gastos={gastos} pct={config.comisionPct} />
         )}
         {tab === 'gastos' && (
           <GastosView gastos={gastos} onAdd={addGasto} onDelete={deleteGasto} />
+        )}
+        {tab === 'reportes' && (
+          <ReportesView registros={registros} gastos={gastos} pct={config.comisionPct} />
         )}
         {tab === 'barberos' && (
           <BarberosView config={config} onSave={persistConfig} />
         )}
       </main>
+
+      {/* 6. Barra de navegación inferior recuperada */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t border-stone-800 flex z-50">
+        {[
+          { key: 'hoy', label: 'Hoy', Icon: ListChecks },
+          { key: 'calendario', label: 'Calendario', Icon: CalendarDays },
+          { key: 'cierres', label: 'Cierres', Icon: Scissors },
+          { key: 'gastos', label: 'Gastos', Icon: Wallet },
+          { key: 'reportes', label: 'Reportes', Icon: TrendingUp },
+          { key: 'barberos', label: 'Barberos', Icon: Users },
+        ].map(({ key, label, Icon }) => (
+          <button key={key} onClick={() => setTab(key)} className={`flex-1 flex flex-col items-center gap-1 py-2.5 ${tab === key ? 'text-amber-400' : 'text-stone-500'}`}>
+            <Icon size={18} />
+            <span className="text-xs" style={{ fontFamily: FONT_MONO }}>{label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
