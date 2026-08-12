@@ -820,11 +820,43 @@ export default function App() {
     cargarDatos();
   }, [session]);
 
-  const persistConfig = async (cfg) => { setConfig(cfg); };
-  const addRegistro = (entry) => setRegistros([...registros, { id: uid(), ...entry }]);
-  const deleteRegistro = (id) => setRegistros(registros.filter((r) => r.id !== id));
-  const addGasto = (entry) => setGastos([...gastos, { id: uid(), ...entry }]);
-  const deleteGasto = (id) => setGastos(gastos.filter((g) => g.id !== id));
+// Guardar y borrar registros en Supabase
+  const addRegistro = async (entry) => {
+    const nuevo = { id: uid(), ...entry };
+    setRegistros((prev) => [...prev, nuevo]);
+
+    const { error } = await supabase.from('registros').insert([nuevo]);
+    if (error) {
+      console.error('Error guardando registro:', error);
+      setSyncError(true);
+    }
+  };
+
+  const deleteRegistro = async (id) => {
+    setRegistros((prev) => prev.filter((r) => r.id !== id));
+
+    const { error } = await supabase.from('registros').delete().eq('id', id);
+    if (error) console.error('Error eliminando registro:', error);
+  };
+
+  // Guardar y borrar gastos en Supabase
+  const addGasto = async (entry) => {
+    const nuevo = { id: uid(), ...entry };
+    setGastos((prev) => [...prev, nuevo]);
+
+    const { error } = await supabase.from('gastos').insert([nuevo]);
+    if (error) {
+      console.error('Error guardando gasto:', error);
+      setSyncError(true);
+    }
+  };
+
+  const deleteGasto = async (id) => {
+    setGastos((prev) => prev.filter((g) => g.id !== id));
+
+    const { error } = await supabase.from('gastos').delete().eq('id', id);
+    if (error) console.error('Error eliminando gasto:', error);
+  };
   const irAFecha = (iso) => { setDateSel(iso); setTab('hoy'); };
 
   // 4. Pantalla de carga
