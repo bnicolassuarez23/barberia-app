@@ -104,7 +104,7 @@ const aCobrar = comision + propinas;
       metodo,
       hora,
       monto: m,
-      fecha: toISO(new Date())
+      fecha: dateSel
     };
 
     // Guardar en Supabase
@@ -557,14 +557,32 @@ function GastosView({ gastos, onAdd, onDelete }) {
   const [fecha, setFecha] = useState(toISO(new Date()));
   const [descripcion, setDescripcion] = useState('');
 
-  const submit = () => {
+  const submit = async () => {
     const m = parseFloat(monto);
     if (!m || m <= 0) return;
-    onAdd({ monto: m, categoria, fecha, descripcion: descripcion.trim() });
+
+    const nuevoGasto = {
+      id: uid(),
+      monto: m,
+      categoria,
+      fecha,
+      descripcion: descripcion.trim()
+    };
+
+    const { error } = await supabase
+      .from('gastos')
+      .insert([nuevoGasto]);
+
+    if (error) {
+      console.error('Error al guardar gasto en Supabase:', error);
+      alert('Error al guardar el gasto en Supabase.');
+      return;
+    }
+
+    onAdd(nuevoGasto);
     setMonto('');
     setDescripcion('');
   };
-
   const totalGeneral = gastos.reduce((s, g) => s + g.monto, 0);
   const mesActualISO = toISO(new Date()).slice(0, 7);
   const totalMesActual = gastos.filter((g) => g.fecha.slice(0, 7) === mesActualISO).reduce((s, g) => s + g.monto, 0);
