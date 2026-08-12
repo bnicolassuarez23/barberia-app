@@ -565,7 +565,7 @@ function GastosView({ gastos, onAdd, onDelete }) {
       id: uid(),
       monto: m,
       categoria,
-      fecha: dateSel
+      fecha: dateSel,
       descripcion: descripcion.trim()
     };
 
