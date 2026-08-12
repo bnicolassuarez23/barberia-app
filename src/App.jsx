@@ -104,7 +104,7 @@ const aCobrar = comision + propinas;
       metodo,
       hora,
       monto: m,
-      fecha: dateSel
+      fecha: fecha
     };
 
     // Guardar en Supabase
