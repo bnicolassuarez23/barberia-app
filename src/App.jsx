@@ -226,15 +226,13 @@ delDia.forEach((r) => {
         <p className="text-stone-500 text-sm">Todavía no agregaste barberos. Andá a la pestaña "Barberos" para sumar el primero.</p>
       )}
 
-     {barberos.map((b) => (
+ {barberos.map((b) => (
   <BarberoDia
     key={b.nombre}
     barbero={b.nombre}
     pct={b.pct}
     registros={registros.filter((r) => r.barbero === b.nombre)}
     fecha={dateSel}
-    onAdd={onAdd}
-    onDelete={onDelete}
   />
 ))}
 
