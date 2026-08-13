@@ -78,7 +78,7 @@ function StatCard({ label, valor, tono, esNumero }) {
   );
 }
 
-function BarberoDia({ barbero, pct, registros, onAdd, onDelete }) {
+function BarberoDia({ barbero, pct, registros, onAdd, onDelete, fecha }) {
   const [monto, setMonto] = useState('');
   const [tipo, setTipo] = useState('corte');
   const [metodo, setMetodo] = useState('efectivo');
