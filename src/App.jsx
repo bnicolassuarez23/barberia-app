@@ -98,15 +98,14 @@ const aCobrar = comision + propinas;
     const m = parseFloat(monto);
     if (!m || m <= 0) return;
 
-    const nuevoRegistro = {
-      id: uid(),
-      barbero,
-      tipo,
-      metodo,
-      hora,
-      monto: m,
-      fecha: fecha
-    };
+   const submit = async () => {
+  const m = parseFloat(monto);
+  if (!m || m <= 0) return;
+
+  onAdd({ barbero, tipo, metodo, hora, monto: m, fecha });
+  setMonto('');
+  setHora(nowHHMM());
+};
 
     // Guardar en Supabase
     const { error } = await supabase
@@ -229,12 +228,14 @@ delDia.forEach((r) => {
 
  {barberos.map((b) => (
   <BarberoDia
-    key={b.nombre}
-    barbero={b.nombre}
-    pct={b.pct}
-   registros={(registros || []).filter((r) => (r?.barbero || '') === b.nombre)}
-    fecha={dateSel}
-  />
+  key={b.nombre}
+  barbero={b.nombre}
+  pct={b.pct}
+  registros={(registros  []).filter((r) => (r?.barbero  '') === b.nombre)}
+  fecha={dateSel}
+  onAdd={addRegistro}
+  onDelete={deleteRegistro}
+/>
 ))}
 
       {delDia.length > 0 && (
@@ -825,7 +826,6 @@ export default function App() {
   // 3. Cargar datos de Supabase si hay sesión activa
   useEffect(() => {
     if (!session) return;
-
     async function cargarDatos() {
       try {
         const { data: regData } = await supabase.from('registros').select('*');
@@ -833,6 +833,12 @@ export default function App() {
 
         const { data: gastData } = await supabase.from('gastos').select('*');
         if (gastData) setGastos(gastData);
+
+        // --- Cargar Configuración de Barberos y Comisión ---
+        const { data: confData } = await supabase.from('config').select('*').eq('id', 1).single();
+        if (confData) {
+          setConfig({ barberos: confData.barberos || [], comisionPct: confData.comision_pct ?? 50 });
+        }
       } catch (err) {
         console.error('Error cargando datos:', err);
       }
@@ -841,17 +847,22 @@ export default function App() {
     cargarDatos();
   }, [session]);
 
-// Guardar y borrar registros en Supabase
-  const addRegistro = async (entry) => {
-    const nuevo = { id: uid(), ...entry };
-    setRegistros((prev) => [...prev, nuevo]);
+// Guardar configuración de barberos y comisión
+  const persistConfig = async (nuevoConfig) => {
+    setConfig(nuevoConfig);
+    const { error } = await supabase
+      .from('config')
+      .upsert({ id: 1, barberos: nuevoConfig.barberos, comision_pct: nuevoConfig.comisionPct });
 
-    const { error } = await supabase.from('registros').insert([nuevo]);
     if (error) {
-      console.error('Error guardando registro:', error);
+      console.error('Error guardando config:', error);
       setSyncError(true);
     }
   };
+
+  // Guardar y borrar registros en Supabase
+  const addRegistro = async (entry) => {
+    // ...
 
   const deleteRegistro = async (id) => {
     setRegistros((prev) => prev.filter((r) => r.id !== id));
