@@ -337,7 +337,8 @@ function CierresView({ weekAnchor, setWeekAnchor, registros, barberos, pct, gast
       const totalB = cb.reduce((s, r) => s + r.monto, 0);
       const propB = propinas.filter((r) => r.barbero === b).reduce((s, r) => s + r.monto, 0);
       const ropaB = ropas.filter((r) => r.barbero === b).reduce((s, r) => s + r.monto, 0);
-      const esJefe = b.toLowerCase() === 'nico' || b.toLowerCase() === 'martín' || b.toLowerCase() === 'martin';
+ const nombreB = typeof b === 'string' ? b : (b?.nombre || '');
+const esJefe = nombreB.toLowerCase() === 'nico' || nombreB.toLowerCase() === 'martín' || nombreB.toLowerCase() === 'martin';
 const pctEfectivo = esJefe ? 100 : pct;
 const comisionB = totalB * (pctEfectivo / 100);
       return { barbero: b, cantidad: cb.length, totalB, comisionB, propB, ropaB, aCobrar: comisionB + propB };
