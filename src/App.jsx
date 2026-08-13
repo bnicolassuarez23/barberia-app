@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import Auth from './Auth';
+
 const TIPOS = [
   { key: 'corte', label: 'Corte', Icon: Scissors },
   { key: 'ropa', label: 'Ropa/Producto', Icon: Shirt },
@@ -78,36 +79,36 @@ function StatCard({ label, valor, tono, esNumero }) {
   );
 }
 
-function BarberoDia({ barbero, pct, registros, onAdd, onDelete, fecha }) {
+function BarberoDia({ barbero, pct, registros = [], onAdd, onDelete, fecha }) {
   const [monto, setMonto] = useState('');
   const [tipo, setTipo] = useState('corte');
   const [metodo, setMetodo] = useState('efectivo');
   const [hora, setHora] = useState(nowHHMM());
 
-const subtotalCortes = registros.filter((r) => r.tipo === 'corte').reduce((s, r) => s + r.monto, 0);
-const propinas = registros.filter((r) => r.tipo === 'propina').reduce((s, r) => s + r.monto, 0);
+  const subtotalCortes = registros.filter((r) => r.tipo === 'corte').reduce((s, r) => s + r.monto, 0);
+  const propinas = registros.filter((r) => r.tipo === 'propina').reduce((s, r) => s + r.monto, 0);
 
-// Si es Nico o Martín, cobra el 100%. Si es otro barbero, cobra la comisión guardada (pct)
-const bNombre = barbero || '';
-const esJefe = bNombre.toLowerCase() === 'nico' || bNombre.toLowerCase() === 'martín' || bNombre.toLowerCase() === 'martin';
-const pctEfectivo = esJefe ? 100 : pct;
+  const bNombre = barbero || '';
+  const esJefe = bNombre.toLowerCase() === 'nico' || bNombre.toLowerCase() === 'martín' || bNombre.toLowerCase() === 'martin';
+  const pctEfectivo = esJefe ? 100 : pct;
 
-const comision = subtotalCortes * (pctEfectivo / 100);
-const aCobrar = comision + propinas;
- const submit = async () => {
+  const comision = subtotalCortes * (pctEfectivo / 100);
+  const aCobrar = comision + propinas;
+
+  const submit = async () => {
     const m = parseFloat(monto);
     if (!m || m <= 0) return;
 
-   const submit = async () => {
-  const m = parseFloat(monto);
-  if (!m || m <= 0) return;
+    const nuevoRegistro = {
+      id: uid(),
+      barbero,
+      tipo,
+      metodo,
+      hora,
+      monto: m,
+      fecha: fecha
+    };
 
-  onAdd({ barbero, tipo, metodo, hora, monto: m, fecha });
-  setMonto('');
-  setHora(nowHHMM());
-};
-
-    // Guardar en Supabase
     const { error } = await supabase
       .from('registros')
       .insert([nuevoRegistro]);
@@ -116,8 +117,7 @@ const aCobrar = comision + propinas;
       console.error('Error al guardar en Supabase:', error);
     }
 
-    // Actualizar la pantalla
-    onAdd(nuevoRegistro);
+    if (onAdd) onAdd(nuevoRegistro);
     setMonto('');
     setHora(nowHHMM());
   };
@@ -163,7 +163,7 @@ const aCobrar = comision + propinas;
             return (
               <div key={r.id} className="flex items-center justify-between px-4 py-2 text-sm">
                 <div className="flex items-center gap-2 text-stone-400">
-                  <T.Icon size={14} />
+                  {T && <T.Icon size={14} />}
                   <span style={{ fontFamily: FONT_MONO }}>{r.hora}</span>
                   <span className="text-stone-600">·</span>
                   <span>{METODOS.find((m) => m.key === r.metodo)?.label}</span>
@@ -181,15 +181,16 @@ const aCobrar = comision + propinas;
   );
 }
 
-function HoyView({ dateSel, setDateSel, barberos, pct, registros, addRegistro, deleteRegistro }) {
+function HoyView({ dateSel, setDateSel, barberos = [], pct, registros = [], addRegistro, deleteRegistro }) {
   const fecha = fromISO(dateSel);
   const delDia = useMemo(() => registros.filter((r) => r.fecha === dateSel), [registros, dateSel]);
   const cambiarDia = (n) => setDateSel(toISO(addDays(fecha, n)));
 
   const totales = useMemo(() => {
     let facturado = 0, efectivo = 0, qr = 0, tarjeta = 0, aPagarBarberos = 0, paraBarberia = 0;
-delDia.forEach((r) => {
-      const esJefe = r.barbero?.toLowerCase() === 'nico' || r.barbero?.toLowerCase() === 'martín' || r.barbero?.toLowerCase() === 'martin';
+    delDia.forEach((r) => {
+      const barberoStr = r.barbero || '';
+      const esJefe = barberoStr.toLowerCase() === 'nico' || barberoStr.toLowerCase() === 'martín' || barberoStr.toLowerCase() === 'martin';
       const pctEfectivo = esJefe ? 100 : pct;
 
       if (r.tipo === 'corte') {
@@ -226,17 +227,20 @@ delDia.forEach((r) => {
         <p className="text-stone-500 text-sm">Todavía no agregaste barberos. Andá a la pestaña "Barberos" para sumar el primero.</p>
       )}
 
- {barberos.map((b) => (
-  <BarberoDia
-  key={b.nombre}
-  barbero={b.nombre}
-  pct={b.pct}
-  registros={(registros  []).filter((r) => (r?.barbero  '') === b.nombre)}
-  fecha={dateSel}
-  onAdd={addRegistro}
-  onDelete={deleteRegistro}
-/>
-))}
+      {barberos.map((b) => {
+        const nombreBarbero = typeof b === 'string' ? b : (b?.nombre || '');
+        return (
+          <BarberoDia
+            key={nombreBarbero}
+            barbero={nombreBarbero}
+            pct={typeof b === 'object' ? b.pct : pct}
+            registros={(registros || []).filter((r) => (r?.barbero || '') === nombreBarbero)}
+            fecha={dateSel}
+            onAdd={addRegistro}
+            onDelete={deleteRegistro}
+          />
+        );
+      })}
 
       {delDia.length > 0 && (
         <div className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-2">
@@ -254,7 +258,7 @@ delDia.forEach((r) => {
   );
 }
 
-function CalendarioView({ monthAnchor, setMonthAnchor, registros, onSelectDay, dateSel }) {
+function CalendarioView({ monthAnchor, setMonthAnchor, registros = [], onSelectDay, dateSel }) {
   const year = monthAnchor.getFullYear();
   const month = monthAnchor.getMonth();
   const first = new Date(year, month, 1);
@@ -311,7 +315,7 @@ function CalendarioView({ monthAnchor, setMonthAnchor, registros, onSelectDay, d
   );
 }
 
-function CierresView({ weekAnchor, setWeekAnchor, registros, barberos, pct, gastos }) {
+function CierresView({ weekAnchor, setWeekAnchor, registros = [], barberos = [], pct, gastos = [] }) {
   const lunes = weekAnchor;
   const sabado = addDays(lunes, 5);
   const isoLunes = toISO(lunes);
@@ -335,15 +339,15 @@ function CierresView({ weekAnchor, setWeekAnchor, registros, barberos, pct, gast
     const paraBarberia = totalCortes * (1 - pct / 100) + totalRopa;
 
     const porBarbero = barberos.map((b) => {
-      const cb = cortes.filter((r) => r.barbero === b);
+      const nombreB = typeof b === 'string' ? b : (b?.nombre || '');
+      const cb = cortes.filter((r) => r.barbero === nombreB);
       const totalB = cb.reduce((s, r) => s + r.monto, 0);
-      const propB = propinas.filter((r) => r.barbero === b).reduce((s, r) => s + r.monto, 0);
-      const ropaB = ropas.filter((r) => r.barbero === b).reduce((s, r) => s + r.monto, 0);
- const nombreB = typeof b === 'string' ? b : (b?.nombre || '');
-const esJefe = nombreB.toLowerCase() === 'nico' || nombreB.toLowerCase() === 'martín' || nombreB.toLowerCase() === 'martin';
-const pctEfectivo = esJefe ? 100 : pct;
-const comisionB = totalB * (pctEfectivo / 100);
-      return { barbero: b, cantidad: cb.length, totalB, comisionB, propB, ropaB, aCobrar: comisionB + propB };
+      const propB = propinas.filter((r) => r.barbero === nombreB).reduce((s, r) => s + r.monto, 0);
+      const ropaB = ropas.filter((r) => r.barbero === nombreB).reduce((s, r) => s + r.monto, 0);
+      const esJefe = nombreB.toLowerCase() === 'nico' || nombreB.toLowerCase() === 'martín' || nombreB.toLowerCase() === 'martin';
+      const pctEfectivo = esJefe ? 100 : pct;
+      const comisionB = totalB * (pctEfectivo / 100);
+      return { barbero: nombreB, cantidad: cb.length, totalB, comisionB, propB, ropaB, aCobrar: comisionB + propB };
     });
 
     const porDia = [0, 1, 2, 3, 4, 5].map((i) => {
@@ -368,7 +372,7 @@ const comisionB = totalB * (pctEfectivo / 100);
 
   const diaMax = stats.porDia.reduce((max, d) => (d.cantidad > max.cantidad ? d : max), stats.porDia[0]);
   const diaMin = stats.porDia.reduce((min, d) => (d.cantidad < min.cantidad ? d : min), stats.porDia[0]);
-  const hayVariacionDia = diaMax.cantidad > diaMin.cantidad;
+  const hayVariacionDia = diaMax && diaMin && diaMax.cantidad > diaMin.cantidad;
 
   const horaMax = stats.porHora.length ? stats.porHora.reduce((max, h) => (h.cantidad > max.cantidad ? h : max), stats.porHora[0]) : null;
   const horaMin = stats.porHora.length ? stats.porHora.reduce((min, h) => (h.cantidad < min.cantidad ? h : min), stats.porHora[0]) : null;
@@ -555,7 +559,7 @@ function BarberosView({ config, onSave }) {
   );
 }
 
-function GastosView({ gastos, onAdd, onDelete }) {
+function GastosView({ gastos = [], onAdd, onDelete }) {
   const [monto, setMonto] = useState('');
   const [categoria, setCategoria] = useState(GASTO_CATEGORIAS[0]);
   const [fecha, setFecha] = useState(toISO(new Date()));
@@ -583,10 +587,11 @@ function GastosView({ gastos, onAdd, onDelete }) {
       return;
     }
 
-    onAdd(nuevoGasto);
+    if (onAdd) onAdd(nuevoGasto);
     setMonto('');
     setDescripcion('');
   };
+
   const totalGeneral = gastos.reduce((s, g) => s + g.monto, 0);
   const mesActualISO = toISO(new Date()).slice(0, 7);
   const totalMesActual = gastos.filter((g) => g.fecha.slice(0, 7) === mesActualISO).reduce((s, g) => s + g.monto, 0);
@@ -719,7 +724,7 @@ function BarraTendencia({ datos, maxValor }) {
   );
 }
 
-function ReportesView({ registros, gastos, pct }) {
+function ReportesView({ registros = [], gastos = [], pct }) {
   const hoy = new Date();
 
   const mensual = useMemo(() => {
@@ -793,8 +798,8 @@ function ReportesView({ registros, gastos, pct }) {
     </div>
   );
 }
+
 export default function App() {
-  // 1. Estados
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncError, setSyncError] = useState(false);
@@ -806,7 +811,6 @@ export default function App() {
   const [monthAnchor, setMonthAnchor] = useState(new Date());
   const [weekAnchor, setWeekAnchor] = useState(mondayOf(new Date()));
 
-  // 2. Escuchar la sesión de Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -823,9 +827,9 @@ export default function App() {
     };
   }, []);
 
-  // 3. Cargar datos de Supabase si hay sesión activa
   useEffect(() => {
     if (!session) return;
+
     async function cargarDatos() {
       try {
         const { data: regData } = await supabase.from('registros').select('*');
@@ -834,7 +838,6 @@ export default function App() {
         const { data: gastData } = await supabase.from('gastos').select('*');
         if (gastData) setGastos(gastData);
 
-        // --- Cargar Configuración de Barberos y Comisión ---
         const { data: confData } = await supabase.from('config').select('*').eq('id', 1).single();
         if (confData) {
           setConfig({ barberos: confData.barberos || [], comisionPct: confData.comision_pct ?? 50 });
@@ -847,7 +850,6 @@ export default function App() {
     cargarDatos();
   }, [session]);
 
-// Guardar configuración de barberos y comisión
   const persistConfig = async (nuevoConfig) => {
     setConfig(nuevoConfig);
     const { error } = await supabase
@@ -860,9 +862,16 @@ export default function App() {
     }
   };
 
-  // Guardar y borrar registros en Supabase
   const addRegistro = async (entry) => {
-    // ...
+    const nuevo = { id: uid(), ...entry };
+    setRegistros((prev) => [...prev, nuevo]);
+
+    const { error } = await supabase.from('registros').insert([nuevo]);
+    if (error) {
+      console.error('Error guardando registro:', error);
+      setSyncError(true);
+    }
+  };
 
   const deleteRegistro = async (id) => {
     setRegistros((prev) => prev.filter((r) => r.id !== id));
@@ -871,7 +880,6 @@ export default function App() {
     if (error) console.error('Error eliminando registro:', error);
   };
 
-  // Guardar y borrar gastos en Supabase
   const addGasto = async (entry) => {
     const nuevo = { id: uid(), ...entry };
     setGastos((prev) => [...prev, nuevo]);
@@ -889,9 +897,9 @@ export default function App() {
     const { error } = await supabase.from('gastos').delete().eq('id', id);
     if (error) console.error('Error eliminando gasto:', error);
   };
+
   const irAFecha = (iso) => { setDateSel(iso); setTab('hoy'); };
 
-  // 4. Pantalla de carga
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center text-stone-400" style={{ fontFamily: FONT_BODY }}>
@@ -900,7 +908,6 @@ export default function App() {
     );
   }
 
-  // 5. Si no hay sesión, muestra Login
   if (!session) return <Auth />;
 
   return (
@@ -946,7 +953,6 @@ export default function App() {
         )}
       </main>
 
-      {/* 6. Barra de navegación inferior recuperada */}
       <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t border-stone-800 flex z-50">
         {[
           { key: 'hoy', label: 'Hoy', Icon: ListChecks },
