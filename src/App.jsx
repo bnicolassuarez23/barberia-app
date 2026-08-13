@@ -227,12 +227,15 @@ delDia.forEach((r) => {
       )}
 
       {barberos.map((b) => (
-        <BarberoDia
-          key={b} barbero={b} pct={pct}
-          registros={delDia.filter((r) => r.barbero === b)}
-          onAdd={(e) => addRegistro({ ...e, fecha: dateSel, barbero: b })}
-          onDelete={deleteRegistro}
-        />
+       <BarberoDia
+  key={b.nombre}
+  barbero={b.nombre}
+  pct={b.pct}
+  registros={registrosDelBarbero}
+  fecha={dateSel}
+  onAdd={onAdd}
+  onDelete={onDelete}
+/>
       ))}
 
       {delDia.length > 0 && (
