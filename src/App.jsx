@@ -88,7 +88,8 @@ const subtotalCortes = registros.filter((r) => r.tipo === 'corte').reduce((s, r)
 const propinas = registros.filter((r) => r.tipo === 'propina').reduce((s, r) => s + r.monto, 0);
 
 // Si es Nico o Martín, cobra el 100%. Si es otro barbero, cobra la comisión guardada (pct)
-const esJefe = barbero.toLowerCase() === 'nico' || barbero.toLowerCase() === 'martín' || barbero.toLowerCase() === 'martin';
+const bNombre = barbero || '';
+const esJefe = bNombre.toLowerCase() === 'nico' || bNombre.toLowerCase() === 'martín' || bNombre.toLowerCase() === 'martin';
 const pctEfectivo = esJefe ? 100 : pct;
 
 const comision = subtotalCortes * (pctEfectivo / 100);
@@ -231,7 +232,7 @@ delDia.forEach((r) => {
     key={b.nombre}
     barbero={b.nombre}
     pct={b.pct}
-    registros={registros.filter((r) => r.barbero === b.nombre)}
+   registros={(registros || []).filter((r) => (r?.barbero || '') === b.nombre)}
     fecha={dateSel}
   />
 ))}
