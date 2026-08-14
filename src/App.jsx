@@ -227,20 +227,20 @@ function HoyView({ dateSel, setDateSel, barberos = [], pct, registros = [], addR
         <p className="text-stone-500 text-sm">Todavía no agregaste barberos. Andá a la pestaña "Barberos" para sumar el primero.</p>
       )}
 
-      {barberos.map((b) => {
-        const nombreBarbero = typeof b === 'string' ? b : (b?.nombre || '');
-        return (
-          <BarberoDia
-            key={nombreBarbero}
-            barbero={nombreBarbero}
-            pct={typeof b === 'object' ? b.pct : pct}
-            registros={(registros || []).filter((r) => (r?.barbero || '') === nombreBarbero)}
-            fecha={dateSel}
-            onAdd={addRegistro}
-            onDelete={deleteRegistro}
-          />
-        );
-      })}
+{barberos.map((b) => {
+  const nombreBarbero = typeof b === 'string' ? b : (b?.nombre || '');
+  return (
+    <BarberoDia
+      key={nombreBarbero}
+      barbero={nombreBarbero}
+      pct={typeof b === 'object' ? b.pct : pct}
+      registros={delDia.filter((r) => (r?.barbero || '') === nombreBarbero)}
+      fecha={dateSel}
+      onAdd={addRegistro}
+      onDelete={deleteRegistro}
+    />
+  );
+})}
 
       {delDia.length > 0 && (
         <div className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-2">
