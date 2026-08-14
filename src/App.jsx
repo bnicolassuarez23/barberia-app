@@ -565,7 +565,7 @@ function GastosView({ gastos = [], onAdd, onDelete }) {
   const [fecha, setFecha] = useState(toISO(new Date()));
   const [descripcion, setDescripcion] = useState('');
 
-  const submit = () => {
+const submit = () => {
     const m = parseFloat(monto);
     if (!m || m <= 0) return;
 
@@ -578,20 +578,6 @@ function GastosView({ gastos = [], onAdd, onDelete }) {
       });
     }
 
-    setMonto('');
-    setDescripcion('');
-  };
-    const { error } = await supabase
-      .from('gastos')
-      .insert([nuevoGasto]);
-
-    if (error) {
-      console.error('Error al guardar gasto en Supabase:', error);
-      alert('Error al guardar el gasto en Supabase.');
-      return;
-    }
-
-    if (onAdd) onAdd(nuevoGasto);
     setMonto('');
     setDescripcion('');
   };
