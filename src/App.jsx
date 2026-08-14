@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, ChevronLeft, ChevronRight, Scissors, Shirt, Gift,
   CalendarDays, ListChecks, Users, Loader2, Wallet, TrendingUp, TrendingDown,
+  Package, ShoppingCart, AlertTriangle, ArrowRightLeft
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import Auth from './Auth';
@@ -72,7 +73,7 @@ function StatCard({ label, valor, tono, esNumero }) {
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-lg p-3">
       <p className="text-xs text-stone-500 mb-1">{label}</p>
-      <p className={`text-lg font-semibold ${tono === 'amber' ? 'text-amber-400' : 'text-stone-100'}`} style={{ fontFamily: FONT_MONO }}>
+      <p className={`text-lg font-semibold ${tono === 'amber' ? 'text-amber-400' : tono === 'red' ? 'text-red-400' : tono === 'emerald' ? 'text-emerald-400' : 'text-stone-100'}`} style={{ fontFamily: FONT_MONO }}>
         {esNumero ? valor : `$${money(valor)}`}
       </p>
     </div>
@@ -95,29 +96,21 @@ function BarberoDia({ barbero, pct, registros = [], onAdd, onDelete, fecha }) {
   const comision = subtotalCortes * (pctEfectivo / 100);
   const aCobrar = comision + propinas;
 
-  const submit = async () => {
+  const submit = () => {
     const m = parseFloat(monto);
     if (!m || m <= 0) return;
 
-    const nuevoRegistro = {
-      id: uid(),
-      barbero,
-      tipo,
-      metodo,
-      hora,
-      monto: m,
-      fecha: fecha
-    };
-
-    const { error } = await supabase
-      .from('registros')
-      .insert([nuevoRegistro]);
-
-    if (error) {
-      console.error('Error al guardar en Supabase:', error);
+    if (onAdd) {
+      onAdd({
+        barbero,
+        tipo,
+        metodo,
+        hora,
+        monto: m,
+        fecha: fecha
+      });
     }
 
-    if (onAdd) onAdd(nuevoRegistro);
     setMonto('');
     setHora(nowHHMM());
   };
@@ -158,7 +151,7 @@ function BarberoDia({ barbero, pct, registros = [], onAdd, onDelete, fecha }) {
 
       {registros.length > 0 && (
         <div className="border-t border-stone-800 divide-y divide-stone-800">
-          {registros.slice().sort((a, b) => a.hora.localeCompare(b.hora)).map((r) => {
+          {registros.slice().sort((a, b) => (a.hora || '').localeCompare(b.hora || '')).map((r) => {
             const T = TIPOS.find((t) => t.key === r.tipo);
             return (
               <div key={r.id} className="flex items-center justify-between px-4 py-2 text-sm">
@@ -183,7 +176,7 @@ function BarberoDia({ barbero, pct, registros = [], onAdd, onDelete, fecha }) {
 
 function HoyView({ dateSel, setDateSel, barberos = [], pct, registros = [], addRegistro, deleteRegistro }) {
   const fecha = fromISO(dateSel);
-  const delDia = useMemo(() => registros.filter((r) => r.fecha === dateSel), [registros, dateSel]);
+  const delDia = useMemo(() => (registros || []).filter((r) => r.fecha === dateSel), [registros, dateSel]);
   const cambiarDia = (n) => setDateSel(toISO(addDays(fecha, n)));
 
   const totales = useMemo(() => {
@@ -227,20 +220,20 @@ function HoyView({ dateSel, setDateSel, barberos = [], pct, registros = [], addR
         <p className="text-stone-500 text-sm">Todavía no agregaste barberos. Andá a la pestaña "Barberos" para sumar el primero.</p>
       )}
 
-{barberos.map((b) => {
-  const nombreBarbero = typeof b === 'string' ? b : (b?.nombre || '');
-  return (
-    <BarberoDia
-      key={nombreBarbero}
-      barbero={nombreBarbero}
-      pct={typeof b === 'object' ? b.pct : pct}
-      registros={delDia.filter((r) => (r?.barbero || '') === nombreBarbero)}
-      fecha={dateSel}
-      onAdd={addRegistro}
-      onDelete={deleteRegistro}
-    />
-  );
-})}
+      {barberos.map((b) => {
+        const nombreBarbero = typeof b === 'string' ? b : (b?.nombre || '');
+        return (
+          <BarberoDia
+            key={nombreBarbero}
+            barbero={nombreBarbero}
+            pct={typeof b === 'object' ? b.pct : pct}
+            registros={delDia.filter((r) => (r?.barbero || '') === nombreBarbero)}
+            fecha={dateSel}
+            onAdd={addRegistro}
+            onDelete={deleteRegistro}
+          />
+        );
+      })}
 
       {delDia.length > 0 && (
         <div className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-2">
@@ -267,7 +260,7 @@ function CalendarioView({ monthAnchor, setMonthAnchor, registros = [], onSelectD
 
   const totalesPorDia = useMemo(() => {
     const map = {};
-    registros.forEach((r) => {
+    (registros || []).forEach((r) => {
       if (r.tipo === 'corte' || r.tipo === 'ropa') map[r.fecha] = (map[r.fecha] || 0) + r.monto;
     });
     return map;
@@ -321,8 +314,8 @@ function CierresView({ weekAnchor, setWeekAnchor, registros = [], barberos = [],
   const isoLunes = toISO(lunes);
   const isoSabado = toISO(sabado);
 
-  const regsSemana = useMemo(() => registros.filter((r) => r.fecha >= isoLunes && r.fecha <= isoSabado), [registros, isoLunes, isoSabado]);
-  const gastosSemana = useMemo(() => gastos.filter((g) => g.fecha >= isoLunes && g.fecha <= isoSabado), [gastos, isoLunes, isoSabado]);
+  const regsSemana = useMemo(() => (registros || []).filter((r) => r.fecha >= isoLunes && r.fecha <= isoSabado), [registros, isoLunes, isoSabado]);
+  const gastosSemana = useMemo(() => (gastos || []).filter((g) => g.fecha >= isoLunes && g.fecha <= isoSabado), [gastos, isoLunes, isoSabado]);
   const totalGastosSemana = gastosSemana.reduce((s, g) => s + g.monto, 0);
   const cambiarSemana = (n) => setWeekAnchor(addDays(lunes, n * 7));
 
@@ -338,7 +331,7 @@ function CierresView({ weekAnchor, setWeekAnchor, registros = [], barberos = [],
     const aPagarBarberos = totalCortes * (pct / 100) + totalPropinas;
     const paraBarberia = totalCortes * (1 - pct / 100) + totalRopa;
 
-    const porBarbero = barberos.map((b) => {
+    const porBarbero = (barberos || []).map((b) => {
       const nombreB = typeof b === 'string' ? b : (b?.nombre || '');
       const cb = cortes.filter((r) => r.barbero === nombreB);
       const totalB = cb.reduce((s, r) => s + r.monto, 0);
@@ -500,7 +493,7 @@ function CierresView({ weekAnchor, setWeekAnchor, registros = [], barberos = [],
 
 function BarberosView({ config, onSave }) {
   const [nuevo, setNuevo] = useState('');
-  const [pctInput, setPctInput] = useState(String(config.comisionPct));
+  const [pctInput, setPctInput] = useState(String(config?.comisionPct || 50));
 
   const agregar = () => {
     const nombre = nuevo.trim();
@@ -522,13 +515,13 @@ function BarberosView({ config, onSave }) {
       <section>
         <h3 className="text-sm uppercase tracking-widest text-stone-500 mb-2" style={{ fontFamily: FONT_MONO }}>Barberos activos</h3>
         <div className="space-y-2">
-          {config.barberos.map((b) => (
+          {(config?.barberos || []).map((b) => (
             <div key={b} className="flex items-center justify-between bg-stone-900 border border-stone-800 rounded-lg px-4 py-2.5">
               <span style={{ fontFamily: FONT_DISPLAY }}>{b}</span>
               <button onClick={() => quitar(b)} className="text-stone-600 active:text-red-400"><Trash2 size={16} /></button>
             </div>
           ))}
-          {config.barberos.length === 0 && <p className="text-stone-500 text-sm">No hay barberos cargados todavía.</p>}
+          {(config?.barberos || []).length === 0 && <p className="text-stone-500 text-sm">No hay barberos cargados todavía.</p>}
         </div>
         <div className="flex gap-2 mt-3">
           <input
@@ -565,7 +558,7 @@ function GastosView({ gastos = [], onAdd, onDelete }) {
   const [fecha, setFecha] = useState(toISO(new Date()));
   const [descripcion, setDescripcion] = useState('');
 
-const submit = () => {
+  const submit = () => {
     const m = parseFloat(monto);
     if (!m || m <= 0) return;
 
@@ -582,16 +575,18 @@ const submit = () => {
     setDescripcion('');
   };
 
-  const totalGeneral = gastos.reduce((s, g) => s + g.monto, 0);
+  const totalGeneral = (gastos || []).reduce((s, g) => s + g.monto, 0);
   const mesActualISO = toISO(new Date()).slice(0, 7);
-  const totalMesActual = gastos.filter((g) => g.fecha.slice(0, 7) === mesActualISO).reduce((s, g) => s + g.monto, 0);
+  const totalMesActual = (gastos || []).filter((g) => g.fecha?.slice(0, 7) === mesActualISO).reduce((s, g) => s + g.monto, 0);
 
   const porMes = useMemo(() => {
     const map = {};
-    gastos.forEach((g) => {
-      const key = g.fecha.slice(0, 7);
-      if (!map[key]) map[key] = [];
-      map[key].push(g);
+    (gastos || []).forEach((g) => {
+      const key = (g.fecha || '').slice(0, 7);
+      if (key) {
+        if (!map[key]) map[key] = [];
+        map[key].push(g);
+      }
     });
     return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
   }, [gastos]);
@@ -643,7 +638,7 @@ const submit = () => {
               <span className="text-sm text-stone-400" style={{ fontFamily: FONT_MONO }}>${money(totalMes)}</span>
             </div>
             <div className="bg-stone-900 border border-stone-800 rounded-lg divide-y divide-stone-800">
-              {items.sort((a, b) => b.fecha.localeCompare(a.fecha)).map((g) => (
+              {items.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map((g) => (
                 <div key={g.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
                   <div>
                     <div className="flex items-center gap-2">
@@ -663,6 +658,321 @@ const submit = () => {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function StockView({ productos = [], ventas = [], onAddProducto, onAddVenta, onDeleteVenta }) {
+  const [mostrarNuevoProd, setMostrarNuevoProd] = useState(false);
+  const [prodSeleccionado, setProdSeleccionado] = useState(null);
+  const [prodVentaId, setProdVentaId] = useState('');
+  const [cantVenta, setCantVenta] = useState(1);
+  const [medioPagoVenta, setMedioPagoVenta] = useState('efectivo');
+
+  // Formulario nuevo producto
+  const [nombreProd, setNombreProd] = useState('');
+  const [stockProd, setStockProd] = useState('');
+  const [costoProd, setCostoProd] = useState('');
+  const [precioProd, setPrecioProd] = useState('');
+  const [nicoProd, setNicoProd] = useState('');
+  const [martinProd, setMartinProd] = useState('');
+
+  // Estadísticas de inventario
+  const totalInvertido = useMemo(() => {
+    return (productos || []).reduce((acc, p) => acc + ((p.costo_unitario || 0) * (p.stock || 0)), 0);
+  }, [productos]);
+
+  const gananciaPotencial = useMemo(() => {
+    return (productos || []).reduce((acc, p) => {
+      const gananciaU = (p.precio_venta || 0) - (p.costo_unitario || 0);
+      return acc + (gananciaU * (p.stock || 0));
+    }, 0);
+  }, [productos]);
+
+  const stockBajoCount = useMemo(() => {
+    return (productos || []).filter((p) => (p.stock || 0) <= 3).length;
+  }, [productos]);
+
+  // Rendiciones totales por ventas
+  const mesActualISO = toISO(new Date()).slice(0, 7);
+  const ventasMes = useMemo(() => {
+    return (ventas || []).filter((v) => (v.fecha || '').slice(0, 7) === mesActualISO);
+  }, [ventas, mesActualISO]);
+
+  const totalNicoMes = useMemo(() => ventasMes.reduce((acc, v) => acc + (v.ganancia_nico || 0), 0), [ventasMes]);
+  const totalMartinMes = useMemo(() => ventasMes.reduce((acc, v) => acc + (v.ganancia_martin || 0), 0), [ventasMes]);
+
+  const submitProducto = (e) => {
+    e.preventDefault();
+    if (!nombreProd.trim()) return;
+
+    onAddProducto({
+      nombre: nombreProd.trim(),
+      stock: parseInt(stockProd) || 0,
+      costo_unitario: parseFloat(costoProd) || 0,
+      precio_venta: parseFloat(precioProd) || 0,
+      reparto_nico: parseFloat(nicoProd) || 0,
+      reparto_martin: parseFloat(martinProd) || 0,
+    });
+
+    setNombreProd('');
+    setStockProd('');
+    setCostoProd('');
+    setPrecioProd('');
+    setNicoProd('');
+    setMartinProd('');
+    setMostrarNuevoProd(false);
+  };
+
+  const abrirVenta = (p) => {
+    setProdSeleccionado(p);
+    setProdVentaId(p.id);
+    setCantVenta(1);
+  };
+
+  const submitVenta = (e) => {
+    e.preventDefault();
+    const prod = (productos || []).find((p) => p.id === prodVentaId);
+    if (!prod) {
+      alert('Seleccioná un producto válido');
+      return;
+    }
+
+    const cantidad = parseInt(cantVenta) || 1;
+    if (cantidad <= 0) return;
+
+    if (prod.stock < cantidad) {
+      alert(`¡No hay stock suficiente! Quedan solo ${prod.stock} unidades de ${prod.nombre}.`);
+      return;
+    }
+
+    onAddVenta({
+      producto_id: prod.id,
+      producto_nombre: prod.nombre,
+      cantidad,
+      precio_total: (prod.precio_venta || 0) * cantidad,
+      ganancia_nico: (prod.reparto_nico || 0) * cantidad,
+      ganancia_martin: (prod.reparto_martin || 0) * cantidad,
+      fecha: toISO(new Date()),
+      medio_pago: medioPagoVenta,
+      stock_actual: prod.stock
+    });
+
+    setProdSeleccionado(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Tarjetas Superiores */}
+      <div className="grid grid-cols-3 gap-2">
+        <StatCard label="Inversión stock" valor={totalInvertido} />
+        <StatCard label="Ganancia pot." valor={gananciaPotencial} tono="emerald" />
+        <StatCard label="Stock bajo" valor={stockBajoCount} esNumero tono={stockBajoCount > 0 ? "red" : "amber"} />
+      </div>
+
+      {/* Rendición / Ganancias del mes */}
+      <section className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>
+            Rendición del mes ({MESES[new Date().getMonth()]})
+          </p>
+          <span className="text-xs text-amber-400 font-medium" style={{ fontFamily: FONT_MONO }}>{ventasMes.length} ventas</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-stone-950 p-3 rounded-lg border border-stone-800">
+            <p className="text-xs text-stone-400">Nico cobra:</p>
+            <p className="text-lg font-bold text-amber-400" style={{ fontFamily: FONT_MONO }}>${money(totalNicoMes)}</p>
+          </div>
+          <div className="bg-stone-950 p-3 rounded-lg border border-stone-800">
+            <p className="text-xs text-stone-400">Martín cobra:</p>
+            <p className="text-lg font-bold text-amber-400" style={{ fontFamily: FONT_MONO }}>${money(totalMartinMes)}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Acciones principales */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setMostrarNuevoProd(!mostrarNuevoProd)}
+          className="flex-1 flex items-center justify-center gap-1.5 bg-stone-800 hover:bg-stone-700 active:bg-stone-600 text-stone-200 text-sm font-semibold rounded-lg py-2.5 transition-colors border border-stone-700"
+        >
+          <Plus size={16} /> {mostrarNuevoProd ? 'Ocultar formulario' : 'Nuevo Producto'}
+        </button>
+      </div>
+
+      {/* Formulario Nuevo Producto */}
+      {mostrarNuevoProd && (
+        <form onSubmit={submitProducto} className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-3">
+          <p className="text-xs uppercase tracking-widest text-amber-400 font-semibold" style={{ fontFamily: FONT_MONO }}>+ Alta de Producto</p>
+          <div className="space-y-2">
+            <input
+              type="text" placeholder="Nombre del producto" value={nombreProd}
+              onChange={(e) => setNombreProd(e.target.value)} required
+              className="w-full bg-stone-950 border border-stone-700 rounded px-3 py-2 text-stone-100 placeholder-stone-600 text-sm"
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <input
+                type="number" placeholder="Stock" value={stockProd}
+                onChange={(e) => setStockProd(e.target.value)} required
+                className="bg-stone-950 border border-stone-700 rounded px-3 py-2 text-stone-100 placeholder-stone-600 text-sm" style={{ fontFamily: FONT_MONO }}
+              />
+              <input
+                type="number" placeholder="Costo Unit. $" value={costoProd}
+                onChange={(e) => setCostoProd(e.target.value)} required
+                className="bg-stone-950 border border-stone-700 rounded px-3 py-2 text-stone-100 placeholder-stone-600 text-sm" style={{ fontFamily: FONT_MONO }}
+              />
+              <input
+                type="number" placeholder="Precio Venta $" value={precioProd}
+                onChange={(e) => setPrecioProd(e.target.value)} required
+                className="bg-stone-950 border border-stone-700 rounded px-3 py-2 text-stone-100 placeholder-stone-600 text-sm" style={{ fontFamily: FONT_MONO }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number" placeholder="Reparto Nico $" value={nicoProd}
+                onChange={(e) => setNicoProd(e.target.value)} required
+                className="bg-stone-950 border border-stone-700 rounded px-3 py-2 text-stone-100 placeholder-stone-600 text-sm" style={{ fontFamily: FONT_MONO }}
+              />
+              <input
+                type="number" placeholder="Reparto Martín $" value={martinProd}
+                onChange={(e) => setMartinProd(e.target.value)} required
+                className="bg-stone-950 border border-stone-700 rounded px-3 py-2 text-stone-100 placeholder-stone-600 text-sm" style={{ fontFamily: FONT_MONO }}
+              />
+            </div>
+          </div>
+          <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold py-2 rounded text-sm">
+            Guardar Producto
+          </button>
+        </form>
+      )}
+
+      {/* Modal/Formulario de Venta Rápida */}
+      {prodSeleccionado && (
+        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <form onSubmit={submitVenta} className="bg-stone-900 border border-stone-700 rounded-xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+              <h3 className="font-semibold text-lg text-amber-400" style={{ fontFamily: FONT_DISPLAY }}>Registrar Venta</h3>
+              <button type="button" onClick={() => setProdSeleccionado(null)} className="text-stone-400 hover:text-stone-200 text-sm">✕</button>
+            </div>
+            <div>
+              <p className="text-stone-200 font-medium text-base">{prodSeleccionado.nombre}</p>
+              <p className="text-xs text-stone-400 mt-0.5">Precio: ${money(prodSeleccionado.precio_venta)} · Stock disp: <strong className="text-amber-400">{prodSeleccionado.stock}</strong></p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-stone-400 mb-1 block">Cantidad a vender:</label>
+                <input
+                  type="number" min="1" max={prodSeleccionado.stock} value={cantVenta}
+                  onChange={(e) => setCantVenta(e.target.value)} required
+                  className="w-full bg-stone-950 border border-stone-700 rounded px-3 py-2 text-stone-100" style={{ fontFamily: FONT_MONO }}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-stone-400 mb-1 block">Medio de pago:</label>
+                <select
+                  value={medioPagoVenta} onChange={(e) => setMedioPagoVenta(e.target.value)}
+                  className="w-full bg-stone-950 border border-stone-700 rounded px-3 py-2 text-stone-100"
+                >
+                  <option value="efectivo">Efectivo</option>
+                  <option value="qr">QR / Transferencia</option>
+                  <option value="tarjeta">Tarjeta</option>
+                </select>
+              </div>
+            </div>
+            <div className="bg-stone-950 p-3 rounded border border-stone-800 text-xs space-y-1" style={{ fontFamily: FONT_MONO }}>
+              <div className="flex justify-between text-stone-400"><span>Total a cobrar:</span><span className="text-stone-100 font-bold">${money((prodSeleccionado.precio_venta || 0) * (parseInt(cantVenta) || 1))}</span></div>
+              <div className="flex justify-between text-amber-400"><span>Reparto Nico:</span><span>${money((prodSeleccionado.reparto_nico || 0) * (parseInt(cantVenta) || 1))}</span></div>
+              <div className="flex justify-between text-amber-400"><span>Reparto Martín:</span><span>${money((prodSeleccionado.reparto_martin || 0) * (parseInt(cantVenta) || 1))}</span></div>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setProdSeleccionado(null)} className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-300 py-2 rounded text-sm font-semibold">
+                Cancelar
+              </button>
+              <button type="submit" className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-950 py-2 rounded text-sm font-bold">
+                Confirmar Venta
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Listado de Inventario */}
+      <section className="space-y-3">
+        <h3 className="text-sm uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>Inventario de Productos</h3>
+        <div className="grid grid-cols-1 gap-2">
+          {(productos || []).map((p) => {
+            const stockBajo = (p.stock || 0) <= 3;
+            return (
+              <div key={p.id} className="bg-stone-900 border border-stone-800 rounded-lg p-3 flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-stone-200" style={{ fontFamily: FONT_DISPLAY }}>{p.nombre}</span>
+                    {stockBajo && (
+                      <span className="bg-red-950/80 border border-red-800 text-red-400 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold">
+                        Bajo
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-stone-400" style={{ fontFamily: FONT_MONO }}>
+                    <span>Stock: <strong className={stockBajo ? "text-red-400" : "text-emerald-400"}>{p.stock}</strong> u.</span>
+                    <span>·</span>
+                    <span>Venta: ${money(p.precio_venta)}</span>
+                    <span>·</span>
+                    <span>N: ${money(p.reparto_nico)} / M: ${money(p.reparto_martin)}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => abrirVenta(p)}
+                  disabled={p.stock <= 0}
+                  className={`flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
+                    p.stock > 0 
+                      ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 active:scale-95' 
+                      : 'bg-stone-800 text-stone-600 cursor-not-allowed'
+                  }`}
+                >
+                  <ShoppingCart size={14} /> Vender
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Historial de Ventas */}
+      <section className="space-y-3">
+        <h3 className="text-sm uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>Últimas Ventas</h3>
+        {(ventas || []).length === 0 ? (
+          <p className="text-stone-500 text-sm">No hay ventas registradas todavía.</p>
+        ) : (
+          <div className="bg-stone-900 border border-stone-800 rounded-lg divide-y divide-stone-800">
+            {(ventas || []).slice().reverse().slice(0, 15).map((v) => (
+              <div key={v.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-stone-200">{v.producto_nombre}</span>
+                    <span className="text-xs text-amber-400 font-bold" style={{ fontFamily: FONT_MONO }}>x{v.cantidad}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5" style={{ fontFamily: FONT_MONO }}>
+                    <span>{v.fecha ? formatShort(fromISO(v.fecha)) : ''}</span>
+                    <span>·</span>
+                    <span className="capitalize">{v.medio_pago || 'efectivo'}</span>
+                    <span>·</span>
+                    <span>Nico: ${money(v.ganancia_nico)}</span>
+                    <span>·</span>
+                    <span>Martín: ${money(v.ganancia_martin)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-stone-100" style={{ fontFamily: FONT_MONO }}>${money(v.precio_total)}</span>
+                  <button onClick={() => onDeleteVenta(v)} title="Anular venta y reponer stock" className="text-stone-600 active:text-red-400">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -722,13 +1032,13 @@ function ReportesView({ registros = [], gastos = [], pct }) {
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
-      const cortes = registros.filter((r) => r.tipo === 'corte' && r.fecha.slice(0, 7) === key);
-      const ropas = registros.filter((r) => r.tipo === 'ropa' && r.fecha.slice(0, 7) === key);
+      const cortes = (registros || []).filter((r) => r.tipo === 'corte' && (r.fecha || '').slice(0, 7) === key);
+      const ropas = (registros || []).filter((r) => r.tipo === 'ropa' && (r.fecha || '').slice(0, 7) === key);
       const totalCortes = cortes.reduce((s, r) => s + r.monto, 0);
       const totalRopa = ropas.reduce((s, r) => s + r.monto, 0);
       const facturado = totalCortes + totalRopa;
       const paraBarberia = totalCortes * (1 - pct / 100) + totalRopa;
-      const gastosMes = gastos.filter((g) => g.fecha.slice(0, 7) === key).reduce((s, g) => s + g.monto, 0);
+      const gastosMes = (gastos || []).filter((g) => (g.fecha || '').slice(0, 7) === key).reduce((s, g) => s + g.monto, 0);
       meses.push({ key, label: `${MESES[d.getMonth()].slice(0, 3)} '${String(d.getFullYear()).slice(2)}`, facturado, gananciaNeta: paraBarberia - gastosMes });
     }
     return calcularVariacion(meses);
@@ -741,8 +1051,8 @@ function ReportesView({ registros = [], gastos = [], pct }) {
       const lunes = addDays(lunesActual, -7 * i);
       const sabado = addDays(lunes, 5);
       const isoL = toISO(lunes), isoS = toISO(sabado);
-      const cortes = registros.filter((r) => r.tipo === 'corte' && r.fecha >= isoL && r.fecha <= isoS);
-      const ropas = registros.filter((r) => r.tipo === 'ropa' && r.fecha >= isoL && r.fecha <= isoS);
+      const cortes = (registros || []).filter((r) => r.tipo === 'corte' && (r.fecha || '') >= isoL && (r.fecha || '') <= isoS);
+      const ropas = (registros || []).filter((r) => r.tipo === 'ropa' && (r.fecha || '') >= isoL && (r.fecha || '') <= isoS);
       const facturado = cortes.reduce((s, r) => s + r.monto, 0) + ropas.reduce((s, r) => s + r.monto, 0);
       semanas.push({ key: isoL, label: formatShort(lunes), facturado });
     }
@@ -796,6 +1106,8 @@ export default function App() {
   const [config, setConfig] = useState({ barberos: ['Nico', 'Martín', 'Gonza'], comisionPct: 50 });
   const [registros, setRegistros] = useState([]);
   const [gastos, setGastos] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [ventas, setVentas] = useState([]);
   const [tab, setTab] = useState('hoy');
   const [dateSel, setDateSel] = useState(toISO(new Date()));
   const [monthAnchor, setMonthAnchor] = useState(new Date());
@@ -832,6 +1144,13 @@ export default function App() {
         if (confData) {
           setConfig({ barberos: confData.barberos || [], comisionPct: confData.comision_pct ?? 50 });
         }
+
+        const { data: prodData } = await supabase.from('productos').select('*').order('nombre');
+        if (prodData) setProductos(prodData);
+
+        const { data: ventData } = await supabase.from('ventas').select('*').order('created_at', { ascending: false });
+        if (ventData) setVentas(ventData);
+
       } catch (err) {
         console.error('Error cargando datos:', err);
       }
@@ -854,42 +1173,121 @@ export default function App() {
 
   const addRegistro = async (entry) => {
     const nuevo = { id: uid(), ...entry };
-    setRegistros((prev) => [...prev, nuevo]);
-
     const { error } = await supabase.from('registros').insert([nuevo]);
     if (error) {
       console.error('Error guardando registro:', error);
       setSyncError(true);
+      return;
     }
+    setRegistros((prev) => [...prev, nuevo]);
+    setSyncError(false);
   };
 
   const deleteRegistro = async (id) => {
-    setRegistros((prev) => prev.filter((r) => r.id !== id));
-
     const { error } = await supabase.from('registros').delete().eq('id', id);
-    if (error) console.error('Error eliminando registro:', error);
+    if (error) {
+      console.error('Error eliminando registro:', error);
+      setSyncError(true);
+      return;
+    }
+    setRegistros((prev) => prev.filter((r) => r.id !== id));
   };
 
- // Guardar y borrar gastos en Supabase
   const addGasto = async (entry) => {
     const nuevo = { id: uid(), ...entry };
-
     const { error } = await supabase.from('gastos').insert([nuevo]);
     if (error) {
       console.error('Error guardando gasto:', error);
       setSyncError(true);
       return;
     }
-
     setGastos((prev) => [...prev, nuevo]);
     setSyncError(false);
   };
 
   const deleteGasto = async (id) => {
-    setGastos((prev) => prev.filter((g) => g.id !== id));
-
     const { error } = await supabase.from('gastos').delete().eq('id', id);
-    if (error) console.error('Error eliminando gasto:', error);
+    if (error) {
+      console.error('Error eliminando gasto:', error);
+      setSyncError(true);
+      return;
+    }
+    setGastos((prev) => prev.filter((g) => g.id !== id));
+  };
+
+  // Funciones de Stock y Ventas
+  const addProducto = async (entry) => {
+    const nuevo = { id: uid(), ...entry };
+    const { error } = await supabase.from('productos').insert([nuevo]);
+    if (error) {
+      console.error('Error guardando producto:', error);
+      setSyncError(true);
+      return;
+    }
+    setProductos((prev) => [...prev, nuevo].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '')));
+    setSyncError(false);
+  };
+
+  const addVenta = async (ventaData) => {
+    const { stock_actual, ...restoVenta } = ventaData;
+    const nuevaVenta = { id: uid(), ...restoVenta };
+    const nuevoStock = stock_actual - ventaData.cantidad;
+
+    // 1. Registrar la venta
+    const { error: errorVenta } = await supabase.from('ventas').insert([nuevaVenta]);
+    if (errorVenta) {
+      console.error('Error al guardar venta:', errorVenta);
+      setSyncError(true);
+      return;
+    }
+
+    // 2. Descontar el stock en productos
+    const { error: errorStock } = await supabase
+      .from('productos')
+      .update({ stock: nuevoStock })
+      .eq('id', ventaData.producto_id);
+
+    if (errorStock) {
+      console.error('Error actualizando stock:', errorStock);
+      setSyncError(true);
+    }
+
+    // 3. Actualizar estados locales
+    setVentas((prev) => [nuevaVenta, ...prev]);
+    setProductos((prev) =>
+      prev.map((p) => (p.id === ventaData.producto_id ? { ...p, stock: nuevoStock } : p))
+    );
+    setSyncError(false);
+  };
+
+  const deleteVenta = async (venta) => {
+    if (!window.confirm(`¿Seguro que querés anular esta venta de ${venta.producto_nombre}? Se repondrán ${venta.cantidad} unidades al stock.`)) {
+      return;
+    }
+
+    // 1. Eliminar la venta
+    const { error: errorDelete } = await supabase.from('ventas').delete().eq('id', venta.id);
+    if (errorDelete) {
+      console.error('Error eliminando venta:', errorDelete);
+      setSyncError(true);
+      return;
+    }
+
+    // 2. Reponer el stock
+    const prod = productos.find((p) => p.id === venta.producto_id);
+    const nuevoStock = (prod?.stock || 0) + (venta.cantidad || 0);
+
+    if (venta.producto_id) {
+      await supabase.from('productos').update({ stock: nuevoStock }).eq('id', venta.producto_id);
+    }
+
+    // 3. Actualizar estados locales
+    setVentas((prev) => prev.filter((v) => v.id !== venta.id));
+    if (venta.producto_id) {
+      setProductos((prev) =>
+        prev.map((p) => (p.id === venta.producto_id ? { ...p, stock: nuevoStock } : p))
+      );
+    }
   };
 
   const irAFecha = (iso) => { setDateSel(iso); setTab('hoy'); };
@@ -939,6 +1337,9 @@ export default function App() {
         {tab === 'gastos' && (
           <GastosView gastos={gastos} onAdd={addGasto} onDelete={deleteGasto} />
         )}
+        {tab === 'stock' && (
+          <StockView productos={productos} ventas={ventas} onAddProducto={addProducto} onAddVenta={addVenta} onDeleteVenta={deleteVenta} />
+        )}
         {tab === 'reportes' && (
           <ReportesView registros={registros} gastos={gastos} pct={config.comisionPct} />
         )}
@@ -947,18 +1348,19 @@ export default function App() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t border-stone-800 flex z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t border-stone-800 flex z-50 overflow-x-auto">
         {[
           { key: 'hoy', label: 'Hoy', Icon: ListChecks },
           { key: 'calendario', label: 'Calendario', Icon: CalendarDays },
           { key: 'cierres', label: 'Cierres', Icon: Scissors },
           { key: 'gastos', label: 'Gastos', Icon: Wallet },
+          { key: 'stock', label: 'Stock', Icon: Package },
           { key: 'reportes', label: 'Reportes', Icon: TrendingUp },
           { key: 'barberos', label: 'Barberos', Icon: Users },
         ].map(({ key, label, Icon }) => (
-          <button key={key} onClick={() => setTab(key)} className={`flex-1 flex flex-col items-center gap-1 py-2.5 ${tab === key ? 'text-amber-400' : 'text-stone-500'}`}>
+          <button key={key} onClick={() => setTab(key)} className={`flex-1 min-w-[55px] flex flex-col items-center gap-1 py-2.5 ${tab === key ? 'text-amber-400' : 'text-stone-500'}`}>
             <Icon size={18} />
-            <span className="text-xs" style={{ fontFamily: FONT_MONO }}>{label}</span>
+            <span className="text-[11px]" style={{ fontFamily: FONT_MONO }}>{label}</span>
           </button>
         ))}
       </nav>
