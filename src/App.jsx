@@ -565,18 +565,22 @@ function GastosView({ gastos = [], onAdd, onDelete }) {
   const [fecha, setFecha] = useState(toISO(new Date()));
   const [descripcion, setDescripcion] = useState('');
 
-  const submit = async () => {
+  const submit = () => {
     const m = parseFloat(monto);
     if (!m || m <= 0) return;
 
-    const nuevoGasto = {
-      id: uid(),
-      monto: m,
-      categoria,
-      fecha: fecha,
-      descripcion: descripcion.trim()
-    };
+    if (onAdd) {
+      onAdd({
+        monto: m,
+        categoria,
+        fecha,
+        descripcion: descripcion.trim()
+      });
+    }
 
+    setMonto('');
+    setDescripcion('');
+  };
     const { error } = await supabase
       .from('gastos')
       .insert([nuevoGasto]);
@@ -880,15 +884,19 @@ export default function App() {
     if (error) console.error('Error eliminando registro:', error);
   };
 
+ // Guardar y borrar gastos en Supabase
   const addGasto = async (entry) => {
     const nuevo = { id: uid(), ...entry };
-    setGastos((prev) => [...prev, nuevo]);
 
     const { error } = await supabase.from('gastos').insert([nuevo]);
     if (error) {
       console.error('Error guardando gasto:', error);
       setSyncError(true);
+      return;
     }
+
+    setGastos((prev) => [...prev, nuevo]);
+    setSyncError(false);
   };
 
   const deleteGasto = async (id) => {
