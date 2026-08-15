@@ -557,6 +557,7 @@ function GastosView({ gastos = [], onAdd, onDelete }) {
   const [categoria, setCategoria] = useState(GASTO_CATEGORIAS[0]);
   const [fecha, setFecha] = useState(toISO(new Date()));
   const [descripcion, setDescripcion] = useState('');
+  const [mesAnchor, setMesAnchor] = useState(new Date());
 
   const submit = () => {
     const m = parseFloat(monto);
@@ -576,25 +577,23 @@ function GastosView({ gastos = [], onAdd, onDelete }) {
   };
 
   const totalGeneral = (gastos || []).reduce((s, g) => s + g.monto, 0);
-  const mesActualISO = toISO(new Date()).slice(0, 7);
-  const totalMesActual = (gastos || []).filter((g) => g.fecha?.slice(0, 7) === mesActualISO).reduce((s, g) => s + g.monto, 0);
 
-  const porMes = useMemo(() => {
-    const map = {};
-    (gastos || []).forEach((g) => {
-      const key = (g.fecha || '').slice(0, 7);
-      if (key) {
-        if (!map[key]) map[key] = [];
-        map[key].push(g);
-      }
-    });
-    return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [gastos]);
+  const mesAnchorISO = `${mesAnchor.getFullYear()}-${pad2(mesAnchor.getMonth() + 1)}`;
+  const cambiarMes = (n) => setMesAnchor(new Date(mesAnchor.getFullYear(), mesAnchor.getMonth() + n, 1));
+  const esMesActual = mesAnchorISO === toISO(new Date()).slice(0, 7);
+
+  const gastosDelMes = useMemo(() => {
+    return (gastos || [])
+      .filter((g) => (g.fecha || '').slice(0, 7) === mesAnchorISO)
+      .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  }, [gastos, mesAnchorISO]);
+
+  const totalMes = gastosDelMes.reduce((s, g) => s + g.monto, 0);
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Gastos este mes" valor={totalMesActual} />
+        <StatCard label="Gastos del mes" valor={totalMes} />
         <StatCard label="Gastos totales" valor={totalGeneral} />
       </div>
 
@@ -626,38 +625,39 @@ function GastosView({ gastos = [], onAdd, onDelete }) {
         </button>
       </div>
 
-      {porMes.length === 0 && <p className="text-stone-500 text-sm">Todavía no cargaste gastos.</p>}
+      <div className="flex items-center justify-between">
+        <button onClick={() => cambiarMes(-1)} className="p-2 text-stone-400 active:text-amber-400"><ChevronLeft size={20} /></button>
+        <div className="text-center">
+          <p className="capitalize text-sm text-stone-300" style={{ fontFamily: FONT_MONO }}>{MESES[mesAnchor.getMonth()]} {mesAnchor.getFullYear()}</p>
+          {!esMesActual && (
+            <button onClick={() => setMesAnchor(new Date())} className="text-xs text-amber-400 mt-0.5" style={{ fontFamily: FONT_MONO }}>volver a este mes</button>
+          )}
+        </div>
+        <button onClick={() => cambiarMes(1)} className="p-2 text-stone-400 active:text-amber-400"><ChevronRight size={20} /></button>
+      </div>
 
-      {porMes.map(([mesKey, items]) => {
-        const [y, m] = mesKey.split('-').map(Number);
-        const totalMes = items.reduce((s, g) => s + g.monto, 0);
-        return (
-          <div key={mesKey}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="capitalize text-sm text-stone-400" style={{ fontFamily: FONT_MONO }}>{MESES[m - 1]} {y}</h3>
-              <span className="text-sm text-stone-400" style={{ fontFamily: FONT_MONO }}>${money(totalMes)}</span>
-            </div>
-            <div className="bg-stone-900 border border-stone-800 rounded-lg divide-y divide-stone-800">
-              {items.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map((g) => (
-                <div key={g.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span style={{ fontFamily: FONT_MONO }}>{formatShort(fromISO(g.fecha))}</span>
-                      <span className="text-stone-500">·</span>
-                      <span className="text-stone-300">{g.categoria}</span>
-                    </div>
-                    {g.descripcion && <p className="text-xs text-stone-500 mt-0.5">{g.descripcion}</p>}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span style={{ fontFamily: FONT_MONO }}>${money(g.monto)}</span>
-                    <button onClick={() => onDelete(g.id)} className="text-stone-600 active:text-red-400"><Trash2 size={14} /></button>
-                  </div>
+      {gastosDelMes.length === 0 && <p className="text-stone-500 text-sm">No hay gastos cargados en {MESES[mesAnchor.getMonth()]}.</p>}
+
+      {gastosDelMes.length > 0 && (
+        <div className="bg-stone-900 border border-stone-800 rounded-lg divide-y divide-stone-800">
+          {gastosDelMes.map((g) => (
+            <div key={g.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span style={{ fontFamily: FONT_MONO }}>{formatShort(fromISO(g.fecha))}</span>
+                  <span className="text-stone-500">·</span>
+                  <span className="text-stone-300">{g.categoria}</span>
                 </div>
-              ))}
+                {g.descripcion && <p className="text-xs text-stone-500 mt-0.5">{g.descripcion}</p>}
+              </div>
+              <div className="flex items-center gap-3">
+                <span style={{ fontFamily: FONT_MONO }}>${money(g.monto)}</span>
+                <button onClick={() => onDelete(g.id)} className="text-stone-600 active:text-red-400"><Trash2 size={14} /></button>
+              </div>
             </div>
-          </div>
-        );
-      })}
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -693,27 +693,20 @@ function StockView({ productos = [], ventas = [], onAddProducto, onAddVenta, onD
     return (productos || []).filter((p) => (p.stock || 0) <= 3).length;
   }, [productos]);
 
-  // Rendiciones totales por ventas
-  const mesActualISO = toISO(new Date()).slice(0, 7);
+  // Selector de mes para ventas y rendiciones
+  const [mesAnchor, setMesAnchor] = useState(new Date());
+  const mesAnchorISO = `${mesAnchor.getFullYear()}-${pad2(mesAnchor.getMonth() + 1)}`;
+  const cambiarMes = (n) => setMesAnchor(new Date(mesAnchor.getFullYear(), mesAnchor.getMonth() + n, 1));
+  const esMesActual = mesAnchorISO === toISO(new Date()).slice(0, 7);
+
   const ventasMes = useMemo(() => {
-    return (ventas || []).filter((v) => (v.fecha || '').slice(0, 7) === mesActualISO);
-  }, [ventas, mesActualISO]);
+    return (ventas || [])
+      .filter((v) => (v.fecha || '').slice(0, 7) === mesAnchorISO)
+      .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  }, [ventas, mesAnchorISO]);
 
   const totalNicoMes = useMemo(() => ventasMes.reduce((acc, v) => acc + (v.ganancia_nico || 0), 0), [ventasMes]);
   const totalMartinMes = useMemo(() => ventasMes.reduce((acc, v) => acc + (v.ganancia_martin || 0), 0), [ventasMes]);
-
-  // Agrupar ventas por mes
-  const ventasPorMes = useMemo(() => {
-    const map = {};
-    (ventas || []).forEach((v) => {
-      const key = (v.fecha || '').slice(0, 7);
-      if (key) {
-        if (!map[key]) map[key] = [];
-        map[key].push(v);
-      }
-    });
-    return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [ventas]);
 
   const submitProducto = (e) => {
     e.preventDefault();
@@ -783,14 +776,21 @@ function StockView({ productos = [], ventas = [], onAddProducto, onAddVenta, onD
         <StatCard label="Stock bajo" valor={stockBajoCount} esNumero tono={stockBajoCount > 0 ? "red" : "amber"} />
       </div>
 
-      {/* Rendición / Ganancias del mes */}
+      {/* Rendición / Ganancias del mes con selector */}
       <section className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>
-            Rendición del mes ({MESES[new Date().getMonth()]})
-          </p>
-          <span className="text-xs text-amber-400 font-medium" style={{ fontFamily: FONT_MONO }}>{ventasMes.length} ventas</span>
+          <button onClick={() => cambiarMes(-1)} className="p-1 text-stone-400 active:text-amber-400"><ChevronLeft size={18} /></button>
+          <div className="text-center">
+            <p className="text-xs uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>
+              Rendición · {MESES[mesAnchor.getMonth()]} {mesAnchor.getFullYear()}
+            </p>
+            {!esMesActual && (
+              <button onClick={() => setMesAnchor(new Date())} className="text-xs text-amber-400" style={{ fontFamily: FONT_MONO }}>volver a este mes</button>
+            )}
+          </div>
+          <button onClick={() => cambiarMes(1)} className="p-1 text-stone-400 active:text-amber-400"><ChevronRight size={18} /></button>
         </div>
+        <p className="text-xs text-amber-400 font-medium text-center" style={{ fontFamily: FONT_MONO }}>{ventasMes.length} ventas</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-stone-950 p-3 rounded-lg border border-stone-800">
             <p className="text-xs text-stone-400">Nico cobra:</p>
@@ -960,56 +960,42 @@ function StockView({ productos = [], ventas = [], onAddProducto, onAddVenta, onD
         </div>
       </section>
 
-      {/* Historial de Ventas Agrupado por Mes */}
-      <section className="space-y-4">
-        <h3 className="text-sm uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>Historial de Ventas</h3>
-        {ventasPorMes.length === 0 && <p className="text-stone-500 text-sm">No hay ventas registradas todavía.</p>}
-        {ventasPorMes.map(([mesKey, items]) => {
-          const [y, m] = mesKey.split('-').map(Number);
-          const totalMes = items.reduce((s, v) => s + (v.precio_total || 0), 0);
-          const nicoMes = items.reduce((s, v) => s + (v.ganancia_nico || 0), 0);
-          const martinMes = items.reduce((s, v) => s + (v.ganancia_martin || 0), 0);
-          return (
-            <div key={mesKey} className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="capitalize text-sm text-stone-400" style={{ fontFamily: FONT_MONO }}>{MESES[m - 1]} {y}</h4>
-                <span className="text-sm text-stone-400 font-semibold" style={{ fontFamily: FONT_MONO }}>${money(totalMes)}</span>
-              </div>
-              <div className="bg-stone-900 border border-stone-800 rounded-lg divide-y divide-stone-800">
-                {items.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map((v) => (
-                  <div key={v.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-stone-200">{v.producto_nombre}</span>
-                        <span className="text-xs text-amber-400 font-bold" style={{ fontFamily: FONT_MONO }}>x{v.cantidad}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5" style={{ fontFamily: FONT_MONO }}>
-                        <span>{v.fecha ? formatShort(fromISO(v.fecha)) : ''}</span>
-                        <span>·</span>
-                        <span className="capitalize">{v.medio_pago || 'efectivo'}</span>
-                        <span>·</span>
-                        <span>Nico: ${money(v.ganancia_nico)}</span>
-                        <span>·</span>
-                        <span>Martín: ${money(v.ganancia_martin)}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-stone-100" style={{ fontFamily: FONT_MONO }}>${money(v.precio_total)}</span>
-                      <button onClick={() => onDeleteVenta(v)} title="Anular venta y reponer stock" className="text-stone-600 active:text-red-400">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+      {/* Historial de Ventas del mes seleccionado */}
+      <section className="space-y-3">
+        <h3 className="text-sm uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>
+          Ventas de {MESES[mesAnchor.getMonth()]}
+        </h3>
+        {ventasMes.length === 0 ? (
+          <p className="text-stone-500 text-sm">No hay ventas registradas en {MESES[mesAnchor.getMonth()]}.</p>
+        ) : (
+          <div className="bg-stone-900 border border-stone-800 rounded-lg divide-y divide-stone-800">
+            {ventasMes.map((v) => (
+              <div key={v.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-stone-200">{v.producto_nombre}</span>
+                    <span className="text-xs text-amber-400 font-bold" style={{ fontFamily: FONT_MONO }}>x{v.cantidad}</span>
                   </div>
-                ))}
+                  <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5" style={{ fontFamily: FONT_MONO }}>
+                    <span>{v.fecha ? formatShort(fromISO(v.fecha)) : ''}</span>
+                    <span>·</span>
+                    <span className="capitalize">{v.medio_pago || 'efectivo'}</span>
+                    <span>·</span>
+                    <span>Nico: ${money(v.ganancia_nico)}</span>
+                    <span>·</span>
+                    <span>Martín: ${money(v.ganancia_martin)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-stone-100" style={{ fontFamily: FONT_MONO }}>${money(v.precio_total)}</span>
+                  <button onClick={() => onDeleteVenta(v)} title="Anular venta y reponer stock" className="text-stone-600 active:text-red-400">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-end gap-3 px-1 text-xs text-stone-400" style={{ fontFamily: FONT_MONO }}>
-                <span>Nico del mes: <strong className="text-amber-400">${money(nicoMes)}</strong></span>
-                <span>·</span>
-                <span>Martín del mes: <strong className="text-amber-400">${money(martinMes)}</strong></span>
-              </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
