@@ -662,7 +662,7 @@ function GastosView({ gastos = [], onAdd, onDelete }) {
   );
 }
 
-function StockView({ productos = [], ventas = [], onAddProducto, onAddVenta, onDeleteVenta }) {
+function StockView({ productos = [], ventas = [], onAddProducto, onAddVenta, onDeleteVenta, onDeleteProducto }) {
   const [mostrarNuevoProd, setMostrarNuevoProd] = useState(false);
   const [prodSeleccionado, setProdSeleccionado] = useState(null);
   const [prodVentaId, setProdVentaId] = useState('');
@@ -701,6 +701,19 @@ function StockView({ productos = [], ventas = [], onAddProducto, onAddVenta, onD
 
   const totalNicoMes = useMemo(() => ventasMes.reduce((acc, v) => acc + (v.ganancia_nico || 0), 0), [ventasMes]);
   const totalMartinMes = useMemo(() => ventasMes.reduce((acc, v) => acc + (v.ganancia_martin || 0), 0), [ventasMes]);
+
+  // Agrupar ventas por mes
+  const ventasPorMes = useMemo(() => {
+    const map = {};
+    (ventas || []).forEach((v) => {
+      const key = (v.fecha || '').slice(0, 7);
+      if (key) {
+        if (!map[key]) map[key] = [];
+        map[key].push(v);
+      }
+    });
+    return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [ventas]);
 
   const submitProducto = (e) => {
     e.preventDefault();
@@ -921,57 +934,82 @@ function StockView({ productos = [], ventas = [], onAddProducto, onAddVenta, onD
                     <span>N: ${money(p.reparto_nico)} / M: ${money(p.reparto_martin)}</span>
                   </div>
                 </div>
-                <button
-                  onClick={() => abrirVenta(p)}
-                  disabled={p.stock <= 0}
-                  className={`flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
-                    p.stock > 0 
-                      ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 active:scale-95' 
-                      : 'bg-stone-800 text-stone-600 cursor-not-allowed'
-                  }`}
-                >
-                  <ShoppingCart size={14} /> Vender
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => abrirVenta(p)}
+                    disabled={p.stock <= 0}
+                    className={`flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
+                      p.stock > 0 
+                        ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 active:scale-95' 
+                        : 'bg-stone-800 text-stone-600 cursor-not-allowed'
+                    }`}
+                  >
+                    <ShoppingCart size={14} /> Vender
+                  </button>
+                  <button
+                    onClick={() => onDeleteProducto(p.id)}
+                    title="Borrar producto"
+                    className="text-stone-600 active:text-red-400 p-2"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       </section>
 
-      {/* Historial de Ventas */}
-      <section className="space-y-3">
-        <h3 className="text-sm uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>Últimas Ventas</h3>
-        {(ventas || []).length === 0 ? (
-          <p className="text-stone-500 text-sm">No hay ventas registradas todavía.</p>
-        ) : (
-          <div className="bg-stone-900 border border-stone-800 rounded-lg divide-y divide-stone-800">
-            {(ventas || []).slice().reverse().slice(0, 15).map((v) => (
-              <div key={v.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-stone-200">{v.producto_nombre}</span>
-                    <span className="text-xs text-amber-400 font-bold" style={{ fontFamily: FONT_MONO }}>x{v.cantidad}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5" style={{ fontFamily: FONT_MONO }}>
-                    <span>{v.fecha ? formatShort(fromISO(v.fecha)) : ''}</span>
-                    <span>·</span>
-                    <span className="capitalize">{v.medio_pago || 'efectivo'}</span>
-                    <span>·</span>
-                    <span>Nico: ${money(v.ganancia_nico)}</span>
-                    <span>·</span>
-                    <span>Martín: ${money(v.ganancia_martin)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-stone-100" style={{ fontFamily: FONT_MONO }}>${money(v.precio_total)}</span>
-                  <button onClick={() => onDeleteVenta(v)} title="Anular venta y reponer stock" className="text-stone-600 active:text-red-400">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+      {/* Historial de Ventas Agrupado por Mes */}
+      <section className="space-y-4">
+        <h3 className="text-sm uppercase tracking-widest text-stone-500" style={{ fontFamily: FONT_MONO }}>Historial de Ventas</h3>
+        {ventasPorMes.length === 0 && <p className="text-stone-500 text-sm">No hay ventas registradas todavía.</p>}
+        {ventasPorMes.map(([mesKey, items]) => {
+          const [y, m] = mesKey.split('-').map(Number);
+          const totalMes = items.reduce((s, v) => s + (v.precio_total || 0), 0);
+          const nicoMes = items.reduce((s, v) => s + (v.ganancia_nico || 0), 0);
+          const martinMes = items.reduce((s, v) => s + (v.ganancia_martin || 0), 0);
+          return (
+            <div key={mesKey} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="capitalize text-sm text-stone-400" style={{ fontFamily: FONT_MONO }}>{MESES[m - 1]} {y}</h4>
+                <span className="text-sm text-stone-400 font-semibold" style={{ fontFamily: FONT_MONO }}>${money(totalMes)}</span>
               </div>
-            ))}
-          </div>
-        )}
+              <div className="bg-stone-900 border border-stone-800 rounded-lg divide-y divide-stone-800">
+                {items.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map((v) => (
+                  <div key={v.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-stone-200">{v.producto_nombre}</span>
+                        <span className="text-xs text-amber-400 font-bold" style={{ fontFamily: FONT_MONO }}>x{v.cantidad}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5" style={{ fontFamily: FONT_MONO }}>
+                        <span>{v.fecha ? formatShort(fromISO(v.fecha)) : ''}</span>
+                        <span>·</span>
+                        <span className="capitalize">{v.medio_pago || 'efectivo'}</span>
+                        <span>·</span>
+                        <span>Nico: ${money(v.ganancia_nico)}</span>
+                        <span>·</span>
+                        <span>Martín: ${money(v.ganancia_martin)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-stone-100" style={{ fontFamily: FONT_MONO }}>${money(v.precio_total)}</span>
+                      <button onClick={() => onDeleteVenta(v)} title="Anular venta y reponer stock" className="text-stone-600 active:text-red-400">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-3 px-1 text-xs text-stone-400" style={{ fontFamily: FONT_MONO }}>
+                <span>Nico del mes: <strong className="text-amber-400">${money(nicoMes)}</strong></span>
+                <span>·</span>
+                <span>Martín del mes: <strong className="text-amber-400">${money(martinMes)}</strong></span>
+              </div>
+            </div>
+          );
+        })}
       </section>
     </div>
   );
@@ -1228,6 +1266,19 @@ export default function App() {
     setSyncError(false);
   };
 
+  const deleteProducto = async (id) => {
+    if (!window.confirm('¿Seguro que querés borrar este producto? No se borran las ventas ya registradas, solo desaparece del inventario.')) {
+      return;
+    }
+    const { error } = await supabase.from('productos').delete().eq('id', id);
+    if (error) {
+      console.error('Error eliminando producto:', error);
+      setSyncError(true);
+      return;
+    }
+    setProductos((prev) => prev.filter((p) => p.id !== id));
+  };
+
   const addVenta = async (ventaData) => {
     const { stock_actual, ...restoVenta } = ventaData;
     const nuevaVenta = { id: uid(), ...restoVenta };
@@ -1338,7 +1389,7 @@ export default function App() {
           <GastosView gastos={gastos} onAdd={addGasto} onDelete={deleteGasto} />
         )}
         {tab === 'stock' && (
-          <StockView productos={productos} ventas={ventas} onAddProducto={addProducto} onAddVenta={addVenta} onDeleteVenta={deleteVenta} />
+          <StockView productos={productos} ventas={ventas} onAddProducto={addProducto} onAddVenta={addVenta} onDeleteVenta={deleteVenta} onDeleteProducto={deleteProducto} />
         )}
         {tab === 'reportes' && (
           <ReportesView registros={registros} gastos={gastos} pct={config.comisionPct} />
