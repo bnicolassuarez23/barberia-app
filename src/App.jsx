@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import Auth from './Auth';
+import ExcelJS from 'exceljs';
 
 const TIPOS = [
   { key: 'corte', label: 'Corte', Icon: Scissors },
@@ -1346,48 +1347,97 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const aCSV = (arr) => {
-    if (!arr || arr.length === 0) return '';
-    const columnas = Object.keys(arr[0]);
-    const escapar = (val) => {
-      if (val === null || val === undefined) return '';
-      const s = String(val);
-      if (s.includes(';') || s.includes('"') || s.includes('\n')) {
-        return `"${s.replace(/"/g, '""')}"`;
-      }
-      return s;
-    };
-    const filas = arr.map((obj) => columnas.map((c) => escapar(obj[c])).join(';'));
-    return [columnas.join(';'), ...filas].join('\n');
+  const generarHoja = (workbook, nombreHoja, columnas, datos) => {
+    const hoja = workbook.addWorksheet(nombreHoja);
+    hoja.columns = columnas.map((c) => ({ header: c.header, key: c.key, width: c.width || 16 }));
+
+    hoja.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF292524' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    (datos || []).forEach((fila) => {
+      const filaFormateada = {};
+      columnas.forEach((c) => { filaFormateada[c.key] = fila[c.key]; });
+      hoja.addRow(filaFormateada);
+    });
+
+    columnas.forEach((c, i) => {
+      if (c.moneda) hoja.getColumn(i + 1).numFmt = '$ #,##0.00';
+    });
+
+    const colsMoneda = columnas.filter((c) => c.moneda);
+    if (colsMoneda.length > 0 && datos && datos.length > 0) {
+      const filaTotales = {};
+      columnas.forEach((c) => { filaTotales[c.key] = ''; });
+      filaTotales[columnas[0].key] = 'TOTAL';
+      colsMoneda.forEach((c) => {
+        filaTotales[c.key] = datos.reduce((s, f) => s + (Number(f[c.key]) || 0), 0);
+      });
+      const rowTotal = hoja.addRow(filaTotales);
+      rowTotal.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.border = { top: { style: 'thin' } };
+      });
+    }
+
+    if (columnas.length > 0) {
+      hoja.autoFilter = { from: 'A1', to: { row: 1, column: columnas.length } };
+    }
   };
 
-  const descargarCSV = (nombreArchivo, arr) => {
-    if (!arr || arr.length === 0) return;
-    const csv = '\uFEFF' + aCSV(arr);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const exportarExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Libro de Caja - Barbería';
+    workbook.created = new Date();
+
+    generarHoja(workbook, 'Registros', [
+      { header: 'Fecha', key: 'fecha', width: 12 },
+      { header: 'Barbero', key: 'barbero', width: 14 },
+      { header: 'Tipo', key: 'tipo', width: 12 },
+      { header: 'Método', key: 'metodo', width: 12 },
+      { header: 'Hora', key: 'hora', width: 10 },
+      { header: 'Monto', key: 'monto', width: 14, moneda: true },
+    ], registros);
+
+    generarHoja(workbook, 'Gastos', [
+      { header: 'Fecha', key: 'fecha', width: 12 },
+      { header: 'Categoría', key: 'categoria', width: 18 },
+      { header: 'Descripción', key: 'descripcion', width: 26 },
+      { header: 'Monto', key: 'monto', width: 14, moneda: true },
+    ], gastos);
+
+    generarHoja(workbook, 'Productos', [
+      { header: 'Nombre', key: 'nombre', width: 22 },
+      { header: 'Stock', key: 'stock', width: 10 },
+      { header: 'Costo Unit.', key: 'costo_unitario', width: 14, moneda: true },
+      { header: 'Precio Venta', key: 'precio_venta', width: 14, moneda: true },
+      { header: 'Reparto Nico', key: 'reparto_nico', width: 14, moneda: true },
+      { header: 'Reparto Martín', key: 'reparto_martin', width: 16, moneda: true },
+    ], productos);
+
+    generarHoja(workbook, 'Ventas', [
+      { header: 'Fecha', key: 'fecha', width: 12 },
+      { header: 'Producto', key: 'producto_nombre', width: 22 },
+      { header: 'Cantidad', key: 'cantidad', width: 10 },
+      { header: 'Medio de pago', key: 'medio_pago', width: 16 },
+      { header: 'Total', key: 'precio_total', width: 14, moneda: true },
+      { header: 'Ganancia Nico', key: 'ganancia_nico', width: 14, moneda: true },
+      { header: 'Ganancia Martín', key: 'ganancia_martin', width: 16, moneda: true },
+    ], ventas);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = nombreArchivo;
+    a.download = `libro-caja-${toISO(new Date())}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
-  const exportarExcel = () => {
-    const fecha = toISO(new Date());
-    const tablas = [
-      { nombre: `registros-${fecha}.csv`, datos: registros },
-      { nombre: `gastos-${fecha}.csv`, datos: gastos },
-      { nombre: `productos-${fecha}.csv`, datos: productos },
-      { nombre: `ventas-${fecha}.csv`, datos: ventas },
-    ];
-    tablas.forEach(({ nombre, datos }, i) => {
-      setTimeout(() => descargarCSV(nombre, datos), i * 400);
-    });
-  };
-
   const irAFecha = (iso) => { setDateSel(iso); setTab('hoy'); };
 
   if (loading) {
