@@ -1326,7 +1326,25 @@ export default function App() {
       );
     }
   };
-
+  const exportarBackup = () => {
+    const backup = {
+      exportado_el: new Date().toISOString(),
+      config,
+      registros,
+      gastos,
+      productos,
+      ventas,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup-barberia-${toISO(new Date())}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
   const irAFecha = (iso) => { setDateSel(iso); setTab('hoy'); };
 
   if (loading) {
@@ -1351,12 +1369,20 @@ export default function App() {
             <span className="text-xs text-stone-500 uppercase tracking-widest" style={{ fontFamily: FONT_MONO }}>Barbería</span>
           </div>
 
-          <button 
-            onClick={() => supabase.auth.signOut()}
-            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
-          >
-            Cerrar Sesión
-          </button>
+                   <div className="flex items-center gap-2">
+            <button
+              onClick={exportarBackup}
+              className="bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold px-3 py-2 rounded-lg transition-colors border border-stone-700"
+            >
+              Backup
+            </button>
+            <button 
+              onClick={() => supabase.auth.signOut()}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
         {syncError && <p className="mt-2 text-xs text-red-400">No se pudo guardar el último cambio. Revisá tu conexión.</p>}
       </header>  
