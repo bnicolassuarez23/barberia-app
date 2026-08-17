@@ -1345,6 +1345,49 @@ export default function App() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  const aCSV = (arr) => {
+    if (!arr || arr.length === 0) return '';
+    const columnas = Object.keys(arr[0]);
+    const escapar = (val) => {
+      if (val === null || val === undefined) return '';
+      const s = String(val);
+      if (s.includes(';') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+    const filas = arr.map((obj) => columnas.map((c) => escapar(obj[c])).join(';'));
+    return [columnas.join(';'), ...filas].join('\n');
+  };
+
+  const descargarCSV = (nombreArchivo, arr) => {
+    if (!arr || arr.length === 0) return;
+    const csv = '\uFEFF' + aCSV(arr);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportarExcel = () => {
+    const fecha = toISO(new Date());
+    const tablas = [
+      { nombre: `registros-${fecha}.csv`, datos: registros },
+      { nombre: `gastos-${fecha}.csv`, datos: gastos },
+      { nombre: `productos-${fecha}.csv`, datos: productos },
+      { nombre: `ventas-${fecha}.csv`, datos: ventas },
+    ];
+    tablas.forEach(({ nombre, datos }, i) => {
+      setTimeout(() => descargarCSV(nombre, datos), i * 400);
+    });
+  };
+
   const irAFecha = (iso) => { setDateSel(iso); setTab('hoy'); };
 
   if (loading) {
@@ -1361,7 +1404,6 @@ export default function App() {
     <div className="min-h-screen bg-stone-950 text-stone-100 pb-24" style={{ fontFamily: FONT_BODY }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');`}</style>
       <BarraBarbero />
-
       <header className="px-4 pt-5 pb-3 border-b border-stone-800">
         <div className="flex items-baseline justify-between">
           <div>
@@ -1370,6 +1412,12 @@ export default function App() {
           </div>
 
                    <div className="flex items-center gap-2">
+            <button
+              onClick={exportarExcel}
+              className="bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold px-3 py-2 rounded-lg transition-colors border border-stone-700"
+            >
+              Excel
+            </button>
             <button
               onClick={exportarBackup}
               className="bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold px-3 py-2 rounded-lg transition-colors border border-stone-700"
