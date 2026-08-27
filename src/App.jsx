@@ -1078,8 +1078,15 @@ function ReportesView({ registros = [], gastos = [], pct }) {
         const pctEfectivo = esJefe ? 100 : pct;
         paraBarberia += r.monto * (1 - pctEfectivo / 100);
       });
-      const gastosMes = (gastos || []).filter((g) => (g.fecha || '').slice(0, 7) === key).reduce((s, g) => s + g.monto, 0);
-      meses.push({ key, label: `${MESES[d.getMonth()].slice(0, 3)} '${String(d.getFullYear()).slice(2)}`, facturado, gananciaNeta: paraBarberia - gastosMes });
+            const gastosMes = (gastos || []).filter((g) => (g.fecha || '').slice(0, 7) === key).reduce((s, g) => s + g.monto, 0);
+      meses.push({
+        key,
+        label: `${MESES[d.getMonth()].slice(0, 3)} '${String(d.getFullYear()).slice(2)}`,
+        facturado,
+        ingresoBarberia: paraBarberia,
+        gastosMes,
+        gananciaNeta: paraBarberia - gastosMes
+      });
     }
     return calcularVariacion(meses);
   }, [registros, gastos, pct]);
@@ -1104,12 +1111,34 @@ function ReportesView({ registros = [], gastos = [], pct }) {
   const ultimoMes = mensual[mensual.length - 1];
   const ultimaSemana = semanal[semanal.length - 1];
 
-  return (
+   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3">
         <TrendCard label="Este mes" valor={ultimoMes.facturado} variacion={ultimoMes.variacion} />
         <TrendCard label="Esta semana" valor={ultimaSemana.facturado} variacion={ultimaSemana.variacion} />
       </div>
+
+      <section>
+        <h3 className="text-sm uppercase tracking-widest text-stone-500 mb-2" style={{ fontFamily: FONT_MONO }}>
+          Rendimiento de la barbería · {ultimoMes.label}
+        </h3>
+        <div className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-2">
+          <Fila label="Ingresos de la barbería (ropa + % de empleados)" valor={ultimoMes.ingresoBarberia} />
+          <Fila label="Gastos del mes" valor={ultimoMes.gastosMes} />
+          <div className="border-t border-dashed border-stone-700 my-1" />
+          <div className="flex items-baseline justify-between">
+            <span className="text-stone-200">Ganancia neta</span>
+            <span className={`font-semibold ${ultimoMes.gananciaNeta >= 0 ? 'text-emerald-400' : 'text-red-400'}`} style={{ fontFamily: FONT_MONO }}>
+              ${money(ultimoMes.gananciaNeta)}
+            </span>
+          </div>
+          <p className="text-xs text-stone-500 pt-1">
+            {ultimoMes.gananciaNeta >= 0
+              ? 'La barbería cubre sus costos con lo generado este mes.'
+              : 'Este mes los gastos superaron lo que ingresó a la barbería.'}
+          </p>
+        </div>
+      </section>
 
       <section>
         <h3 className="text-sm uppercase tracking-widest text-stone-500 mb-2" style={{ fontFamily: FONT_MONO }}>Facturación por mes (últimos 6)</h3>
