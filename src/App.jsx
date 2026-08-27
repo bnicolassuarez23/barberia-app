@@ -329,8 +329,16 @@ function CierresView({ weekAnchor, setWeekAnchor, registros = [], barberos = [],
     const totalRopa = ropas.reduce((s, r) => s + r.monto, 0);
     const totalPropinas = propinas.reduce((s, r) => s + r.monto, 0);
     const facturado = totalCortes + totalRopa;
-    const aPagarBarberos = totalCortes * (pct / 100) + totalPropinas;
-    const paraBarberia = totalCortes * (1 - pct / 100) + totalRopa;
+
+    let aPagarBarberos = totalPropinas;
+    let paraBarberia = totalRopa;
+    cortes.forEach((r) => {
+      const barberoStr = r.barbero || '';
+      const esJefe = barberoStr.toLowerCase() === 'nico' || barberoStr.toLowerCase() === 'martín' || barberoStr.toLowerCase() === 'martin';
+      const pctEfectivo = esJefe ? 100 : pct;
+      aPagarBarberos += r.monto * (pctEfectivo / 100);
+      paraBarberia += r.monto * (1 - pctEfectivo / 100);
+    });
 
     const porBarbero = (barberos || []).map((b) => {
       const nombreB = typeof b === 'string' ? b : (b?.nombre || '');
@@ -1059,10 +1067,17 @@ function ReportesView({ registros = [], gastos = [], pct }) {
       const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
       const cortes = (registros || []).filter((r) => r.tipo === 'corte' && (r.fecha || '').slice(0, 7) === key);
       const ropas = (registros || []).filter((r) => r.tipo === 'ropa' && (r.fecha || '').slice(0, 7) === key);
-      const totalCortes = cortes.reduce((s, r) => s + r.monto, 0);
+           const totalCortes = cortes.reduce((s, r) => s + r.monto, 0);
       const totalRopa = ropas.reduce((s, r) => s + r.monto, 0);
       const facturado = totalCortes + totalRopa;
-      const paraBarberia = totalCortes * (1 - pct / 100) + totalRopa;
+
+      let paraBarberia = totalRopa;
+      cortes.forEach((r) => {
+        const barberoStr = r.barbero || '';
+        const esJefe = barberoStr.toLowerCase() === 'nico' || barberoStr.toLowerCase() === 'martín' || barberoStr.toLowerCase() === 'martin';
+        const pctEfectivo = esJefe ? 100 : pct;
+        paraBarberia += r.monto * (1 - pctEfectivo / 100);
+      });
       const gastosMes = (gastos || []).filter((g) => (g.fecha || '').slice(0, 7) === key).reduce((s, g) => s + g.monto, 0);
       meses.push({ key, label: `${MESES[d.getMonth()].slice(0, 3)} '${String(d.getFullYear()).slice(2)}`, facturado, gananciaNeta: paraBarberia - gastosMes });
     }
