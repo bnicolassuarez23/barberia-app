@@ -1067,25 +1067,26 @@ function ReportesView({ registros = [], gastos = [], pct }) {
       const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
       const cortes = (registros || []).filter((r) => r.tipo === 'corte' && (r.fecha || '').slice(0, 7) === key);
       const ropas = (registros || []).filter((r) => r.tipo === 'ropa' && (r.fecha || '').slice(0, 7) === key);
-           const totalCortes = cortes.reduce((s, r) => s + r.monto, 0);
+                 const totalCortes = cortes.reduce((s, r) => s + r.monto, 0);
       const totalRopa = ropas.reduce((s, r) => s + r.monto, 0);
       const facturado = totalCortes + totalRopa;
 
-      let paraBarberia = totalRopa;
+      let ingresoEmpleados = 0;
       cortes.forEach((r) => {
         const barberoStr = r.barbero || '';
         const esJefe = barberoStr.toLowerCase() === 'nico' || barberoStr.toLowerCase() === 'martín' || barberoStr.toLowerCase() === 'martin';
-        const pctEfectivo = esJefe ? 100 : pct;
-        paraBarberia += r.monto * (1 - pctEfectivo / 100);
+        if (!esJefe) {
+          ingresoEmpleados += r.monto * (1 - pct / 100);
+        }
       });
-            const gastosMes = (gastos || []).filter((g) => (g.fecha || '').slice(0, 7) === key).reduce((s, g) => s + g.monto, 0);
+      const gastosMes = (gastos || []).filter((g) => (g.fecha || '').slice(0, 7) === key).reduce((s, g) => s + g.monto, 0);
       meses.push({
         key,
         label: `${MESES[d.getMonth()].slice(0, 3)} '${String(d.getFullYear()).slice(2)}`,
         facturado,
-        ingresoBarberia: paraBarberia,
+        ingresoEmpleados,
         gastosMes,
-        gananciaNeta: paraBarberia - gastosMes
+        gananciaNeta: ingresoEmpleados - gastosMes
       });
     }
     return calcularVariacion(meses);
@@ -1118,12 +1119,12 @@ function ReportesView({ registros = [], gastos = [], pct }) {
         <TrendCard label="Esta semana" valor={ultimaSemana.facturado} variacion={ultimaSemana.variacion} />
       </div>
 
-      <section>
+           <section>
         <h3 className="text-sm uppercase tracking-widest text-stone-500 mb-2" style={{ fontFamily: FONT_MONO }}>
           Rendimiento de la barbería · {ultimoMes.label}
         </h3>
         <div className="bg-stone-900 border border-stone-800 rounded-lg p-4 space-y-2">
-          <Fila label="Ingresos de la barbería (ropa + % de empleados)" valor={ultimoMes.ingresoBarberia} />
+          <Fila label="Ingreso por % de empleados" valor={ultimoMes.ingresoEmpleados} />
           <Fila label="Gastos del mes" valor={ultimoMes.gastosMes} />
           <div className="border-t border-dashed border-stone-700 my-1" />
           <div className="flex items-baseline justify-between">
@@ -1134,8 +1135,8 @@ function ReportesView({ registros = [], gastos = [], pct }) {
           </div>
           <p className="text-xs text-stone-500 pt-1">
             {ultimoMes.gananciaNeta >= 0
-              ? 'La barbería cubre sus costos con lo generado este mes.'
-              : 'Este mes los gastos superaron lo que ingresó a la barbería.'}
+              ? 'El % de los empleados alcanza para cubrir los gastos del mes.'
+              : 'El % de los empleados no alcanzó para cubrir los gastos este mes.'}
           </p>
         </div>
       </section>
