@@ -1204,10 +1204,10 @@ export default function App() {
 
     async function cargarDatos() {
       try {
-        const { data: regData } = await supabase.from('registros').select('*');
+       const { data: regData } = await supabase.from('registros').select('*').limit(50000);
         if (regData) setRegistros(regData);
 
-        const { data: gastData } = await supabase.from('gastos').select('*');
+        const { data: gastData } = await supabase.from('gastos').select('*').limit(10000);
         if (gastData) setGastos(gastData);
 
         const { data: confData } = await supabase.from('config').select('*').eq('id', 1).single();
